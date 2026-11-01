@@ -14,7 +14,7 @@ test('الداتا بيز: الهيكل كامل والـ migration مرتين �
     assert.ok(tables.includes(t), t)
   }
   assert.ok(!tables.includes('sub_categories'))
-  assert.deepEqual((getDb().prepare('SELECT id FROM schema_migrations').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers'])
+  assert.deepEqual((getDb().prepare('SELECT id FROM schema_migrations').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers', '004_sale_partner'])
 })
 
 test('الـ migration على داتا بيز قديمة (قبل المخازن): البيانات بتفضل وبتتبع المخزون الفعلي', () => {
@@ -25,7 +25,7 @@ test('الـ migration على داتا بيز قديمة (قبل المخازن)
   db.exec("INSERT INTO categories(name) VALUES ('دخوني'); INSERT INTO items(category_id, name_ar) VALUES (1, 'خليفه'); INSERT INTO customers(name) VALUES ('سامي')")
 
   migrate(db)
-  assert.deepEqual((db.prepare('SELECT id FROM schema_migrations ORDER BY id').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers'])
+  assert.deepEqual((db.prepare('SELECT id FROM schema_migrations ORDER BY id').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers', '004_sale_partner'])
   for (const table of ['categories', 'items', 'customers']) {
     assert.deepEqual(db.prepare(`SELECT workspace_id FROM ${table}`).all(), [{ workspace_id: 1 }], table)
   }

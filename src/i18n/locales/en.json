@@ -203,7 +203,10 @@
     "paidAll": "The whole invoice",
     "edit": "Edit sale invoice",
     "deleteNote": "The quantities will go back to stock.",
-    "deletePaymentsWarning": "Recorded payments ({{amount}}) will be deleted with it"
+    "deletePaymentsWarning": "Recorded payments ({{amount}}) will be deleted with it",
+    "soldBy": "Sold by",
+    "allPartners": "All partners",
+    "noPartner": "Not set"
   },
   "returns": {
     "title": "Returns",
@@ -283,6 +286,7 @@
     "INVALID_TRANSFER": "A transfer must be between the personal stock and a partnership",
     "PARTNER_REQUIRED": "Choose the partner",
     "PARTNER_NOT_FOUND": "That partner is not in this partnership",
+    "PARTNER_REQUIRED": "Pick the partner who made this invoice",
     "TRANSFER_NOT_FOUND": "Transfer not found",
     "LOCKED": "The app is locked",
     "WRONG_PASSWORD": "Wrong password",
@@ -378,6 +382,7 @@
       "stock_value": "Stock value",
       "supplier": "Supplier",
       "customer": "Customer",
+      "partner": "Partner",
       "party": "Supplier / customer",
       "price_type": "Price type",
       "shipping_cost": "Shipping",
@@ -589,7 +594,12 @@
     "payments": "Settlements",
     "partnershipProfit": "Partnership profit",
     "formula": "Balance = partner's profit share + what they sold to the partnership - what was settled. Capital is shown separately and returns to the partner on liquidation.",
-    "personalNote": "Partner accounts live inside partnerships. Switch to a partnership from the sidebar."
+    "personalNote": "Partner accounts live inside partnerships. Switch to a partnership from the sidebar.",
+    "salesTitle": "Sales by partner",
+    "invoices": "Invoices",
+    "returns": "Returns",
+    "netSales": "Net sales",
+    "collected": "Collected"
   },
   "auth": {
     "password": "Password",

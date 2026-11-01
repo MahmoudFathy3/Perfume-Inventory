@@ -1,4 +1,4 @@
-import type { PartnerPayment } from '@shared/types'
+import type { PartnerPayment, PartnerSales } from '@shared/types'
 import { execute, queryAll } from '../../database/connection'
 
 export interface PartnerTotals {
@@ -41,3 +41,20 @@ export const insertPayment = (p: { workspace_id: number; partner_id: number; amo
 
 export const removePayment = (id: number, workspaceId: number) =>
   void execute('DELETE FROM partner_payments WHERE id = ? AND workspace_id = ?', [id, workspaceId])
+
+/**
+ * مبيعات كل شريك في الفترة (بتاريخ الفاتورة): عدد الفواتير والإجمالي والمرتجع والصافي والمحصّل.
+ * الفواتير القديمة اللي اتعملت قبل تحديد الشريك بتيجي في صف partner_id = NULL.
+ */
+export const salesByPartner = (workspaceId: number, from: string | null, to: string | null) =>
+  queryAll<Omit<PartnerSales, 'partner_name'>>(
+    `SELECT s.partner_id,
+            COUNT(*) AS invoices,
+            ROUND(SUM(s.total), 2) AS total,
+            ROUND(SUM(COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0)), 2) AS returns_total,
+            ROUND(SUM(COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0)), 2) AS paid
+     FROM sales s
+     WHERE s.workspace_id = @ws AND (@from IS NULL OR s.sale_date >= @from) AND (@to IS NULL OR s.sale_date <= @to)
+     GROUP BY s.partner_id`,
+    { ws: workspaceId, from, to }
+  )

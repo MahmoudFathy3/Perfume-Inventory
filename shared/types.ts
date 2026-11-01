@@ -168,6 +168,20 @@ export interface PartnerAccount {
   balance: number
 }
 
+/** مبيعات شريك واحد في الفترة (الفواتير اللي هو عملها) */
+export interface PartnerSales {
+  /** null = فواتير قديمة من غير شريك */
+  partner_id: number | null
+  partner_name: string | null
+  invoices: number
+  total: number
+  returns_total: number
+  /** الإجمالي - المرتجع */
+  net: number
+  /** المحصّل على الفواتير دي */
+  paid: number
+}
+
 export interface PartnerLedger {
   profit: number
   accounts: PartnerAccount[]
@@ -302,6 +316,9 @@ export interface Sale {
   id: number
   customer_id: number | null
   customer_name: string | null
+  /** الشريك اللي عمل الفاتورة (في الشراكات بس) */
+  partner_id: number | null
+  partner_name: string | null
   sale_date: string
   price_type: PriceType
   shipping_payer: ShippingPayer
@@ -395,6 +412,8 @@ export interface SaleLineInput {
 export interface SaleInput {
   /** لازم لو الفاتورة مش مدفوعة كلها */
   customer_id?: number | null
+  /** الشريك اللي عمل الفاتورة: لازم في الشراكة، وبيتجاهل في المخزون الفعلي */
+  partner_id?: number | null
   sale_date?: string
   price_type?: PriceType
   shipping_payer?: ShippingPayer
@@ -541,6 +560,8 @@ export interface ExportSheet {
 export interface ExportParams {
   search?: string
   itemId?: number
+  /** فواتير شريك واحد بس (مبيعات الشراكة) */
+  partnerId?: number
 }
 
 /** الترجمات اللي الواجهة بتبعتها للـ backend علشان عناوين الأعمدة وقيم الحالات تتكتب بلغة التطبيق */

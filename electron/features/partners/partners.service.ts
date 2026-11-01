@@ -1,4 +1,4 @@
-import type { PartnerLedger, PartnerPaymentInput } from '@shared/types'
+import type { DashboardRange, PartnerLedger, PartnerPaymentInput, PartnerSales } from '@shared/types'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID } from '../../lib/workspace'
 import { lifetimeProfit } from '../dashboard/dashboard.service'
@@ -53,3 +53,21 @@ export function addPayment(input: PartnerPaymentInput): number {
 }
 
 export const removePayment = ({ id }: { id: number }): void => repo.removePayment(id, currentPartnership())
+
+/**
+ * مبيعات كل شريك في الشراكة النشطة (من / إلى اختياري). الصافي = الإجمالي - المرتجع.
+ * لو فيه فواتير من غير شريك (قبل الميزة دي) بتظهر في صف آخر partner_id = null.
+ */
+export function partnerSales({ from, to }: Partial<DashboardRange> = {}): PartnerSales[] {
+  const ws = currentPartnership()
+  const rows = new Map(repo.salesByPartner(ws, from || null, to || null).map((r) => [r.partner_id, r]))
+  const row = (partner_id: number | null, partner_name: string | null): PartnerSales => {
+    const r = rows.get(partner_id)
+    const total = r?.total ?? 0
+    const returns_total = r?.returns_total ?? 0
+    return { partner_id, partner_name, invoices: r?.invoices ?? 0, total, returns_total, net: round2(total - returns_total), paid: r?.paid ?? 0 }
+  }
+  const result = workspaces.findPartners(ws).map((p) => row(p.id, p.name))
+  if (rows.has(null)) result.push(row(null, null))
+  return result
+}

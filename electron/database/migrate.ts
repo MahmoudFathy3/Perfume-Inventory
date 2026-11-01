@@ -3,6 +3,7 @@ import type { Db } from './connection'
 import m001 from './migrations/001_init'
 import m002 from './migrations/002_workspaces'
 import m003 from './migrations/003_transfers'
+import m004 from './migrations/004_sale_partner'
 
 /** migration = SQL ثابت (sql) أو كود بيشغّله على الداتا بيز (up) لما محتاجين شرط أو حساب */
 export interface Migration {
@@ -12,7 +13,7 @@ export interface Migration {
 }
 
 /** كل migration في ملف لوحده في migrations/. ضيف الجديد هنا بالترتيب. متعدّلش migration اتنفّذت قبل كده: اعمل واحدة جديدة. */
-const migrations: Migration[] = [m001, m002, m003]
+const migrations: Migration[] = [m001, m002, m003, m004]
 
 /** نسخة احتياطية من ملف الداتا بيز قبل أي تحويل على داتا موجودة */
 function backupBeforeMigration(db: Db, firstId: string): void {

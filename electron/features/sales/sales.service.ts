@@ -8,14 +8,16 @@ import { cleanSale } from './sales.validation'
 import type { CleanSale } from './sales.validation'
 
 const EPS = 0.005
-export const listSales = (p: { search?: string }) => repo.findAll(p)
-export const pageSales = (p: { search?: string } & PageParams) => repo.findPage(p, p)
+type SalesFilter = { search?: string; partnerId?: number }
+export const listSales = (p: SalesFilter) => repo.findAll(p)
+export const pageSales = (p: SalesFilter & PageParams) => repo.findPage(p, p)
 export const getSale = ({ id }: { id: number }) => repo.findById(id)
 /** الشحن على العميل بيتضاف للفاتورة، وعلى المحل مصروف بيتخصم من الربح (مش بيدخل في الفاتورة) */
 const invoiceTotal = (c: CleanSale, subtotal: number) => round2(subtotal + (c.payer === 'customer' ? c.shipping : 0))
 
 const header = (c: CleanSale, total: number) => ({
   customer_id: c.customerId,
+  partner_id: c.partnerId,
   sale_date: c.date,
   price_type: c.priceType,
   shipping_payer: c.payer,

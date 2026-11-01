@@ -6,7 +6,8 @@ export type Row = Record<string, CellValue>
 export interface SheetDef {
   key: string
   layout?: 'table' | 'record'
-  columns: ExportColumn[]
+  /** دالة لو الأعمدة بتختلف حسب المخزن النشط */
+  columns: ExportColumn[] | (() => ExportColumn[])
   rows: (params: ExportParams) => Row[]
 }
 

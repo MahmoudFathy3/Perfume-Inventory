@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { TransferInput } from '@shared/types'
 import * as categories from '../features/categories/categories.service'
+import { exportData } from '../features/export/export.service'
 import * as items from '../features/items/items.service'
 import * as partners from '../features/partners/partners.service'
 import * as sales from '../features/sales/sales.service'
@@ -105,7 +106,14 @@ test('الاتجاه العكسي: الشراكة بتبيع للمخزون ال
 test('مينفعش تحذف تحويل لو الشراكة باعت القطع', () => {
   const capital = transfers.pageTransfers({ pageSize: 100 }) // المخزون الفعلي طرف في الكل
   const first = capital.rows.find((t) => t.kind === 'capital')!
-  withWorkspace(shop, () => sales.createSale({ items: [{ item_id: shopItem().id, condition: 'new', quantity: 7 }] }))
+  withWorkspace(shop, () => {
+    const line = { item_id: shopItem().id, condition: 'new' as const, quantity: 7 }
+    // في الشراكة لازم نحدد مين من الشركاء اللي باع، ومن نفس الشراكة
+    assert.equal(err(() => sales.createSale({ items: [line] })), 'PARTNER_REQUIRED')
+    const sayed = ws.listWorkspaces().find((w) => w.id === other)!.partners[1].id
+    assert.equal(err(() => sales.createSale({ partner_id: sayed, items: [line] })), 'PARTNER_NOT_FOUND')
+    sales.createSale({ partner_id: ahmed, items: [line] })
+  })
   assert.equal(err(() => transfers.removeTransfer({ id: first.id })), 'OUT_OF_STOCK')
   assert.equal(one<{ n: number }>('SELECT COUNT(*) n FROM transfers WHERE id = ?', first.id).n, 1)
   assert.equal(shopItem().new_quantity, 1)
@@ -131,6 +139,33 @@ test('حسابات الشركاء: نصيب الربح + المباع - التس
     assert.equal(partners.ledger().payments.length, 1)
   })
   assert.equal(err(() => partners.ledger()), 'PERSONAL_WORKSPACE')
+})
+
+test('مبيعات كل شريك: عدد الفواتير والفلوس، والفلترة بالشريك وبالفترة', () => {
+  withWorkspace(shop, () => {
+    sales.createSale({ partner_id: mahmoud, sale_date: '2020-01-05', items: [{ item_id: shopItem().id, condition: 'new', quantity: 1, selling_price: 1800 }] })
+
+    const byPartner = (from: string | null = null, to: string | null = null) =>
+      partners.partnerSales({ from, to }).map((r) => [r.partner_id, r.invoices, r.total, r.net, r.paid])
+    assert.deepEqual(byPartner(), [[mahmoud, 1, 1800, 1800, 1800], [ahmed, 1, 14000, 14000, 14000]])
+    assert.deepEqual(byPartner('2020-01-01', '2020-01-31'), [[mahmoud, 1, 1800, 1800, 1800], [ahmed, 0, 0, 0, 0]])
+
+    const page = sales.pageSales({ partnerId: mahmoud, pageSize: 100 })
+    assert.deepEqual(page.rows.map((s) => [s.partner_id, s.partner_name, s.total]), [[mahmoud, 'محمود', 1800]])
+    assert.equal(sales.pageSales({ pageSize: 100 }).total, 2)
+
+    // التصدير: عمود الشريك بعد العميل، وبيتفلتر بالشريك
+    const [invoices, lines] = exportData({ dataset: 'sales', partnerId: mahmoud })
+    for (const sheet of [invoices, lines]) {
+      const keys = sheet.columns.map((c) => c.key)
+      assert.equal(keys[keys.indexOf('customer') + 1], 'partner')
+      assert.deepEqual(sheet.rows.map((r) => r.partner), ['محمود'])
+    }
+    assert.deepEqual(exportData({ dataset: 'sales' })[0].rows.map((r) => r.partner), ['أحمد', 'محمود']) // الأحدث الأول
+  })
+  assert.ok(!exportData({ dataset: 'sales' })[0].columns.some((c) => c.key === 'partner')) // المخزون الفعلي ملوش شركاء
+  // المخزون الفعلي ملوش شركاء: الشريك بيتجاهل
+  assert.equal(err(() => partners.partnerSales()), 'PERSONAL_WORKSPACE')
 })
 
 test('حركات المنتج بتعرض التحويلات، وفروق الكميات الافتتاحية بتفضل صح', () => {
