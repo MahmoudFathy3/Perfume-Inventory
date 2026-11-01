@@ -34,7 +34,7 @@ function StockBox({ condition, values, onChange }: { condition: Condition; value
   return (
     <div className={clsx('mt-3 rounded-xl border px-3.5 pb-0.5 pt-3', boxTone[condition])}>
       <h4 className="mb-2.5 text-sm font-bold">{t(`condition.${condition}`)}</h4>
-      <div className="grid grid-cols-4 gap-x-3 text-slate-900">
+      <div className="grid grid-cols-2 gap-x-3 text-slate-900 lg:grid-cols-4">
         {stockFields.map((f) => (
           <Field key={f.key} label={t(f.label)}>
             <NumberInput step={f.step} value={values[f.key]} onChange={(e) => onChange({ ...values, [f.key]: e.target.value })} />

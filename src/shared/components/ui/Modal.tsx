@@ -17,7 +17,7 @@ export function Modal({ title, onClose, wide = false, children }: ModalProps) {
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px]" onMouseDown={onClose}>
       <div
-        className={clsx('max-h-[92vh] max-w-[94vw] overflow-auto rounded-2xl bg-white px-6 py-5 shadow-pop', wide ? 'w-[1040px]' : 'w-[480px]')}
+        className={clsx('max-h-[92vh] max-w-[94vw] overflow-auto rounded-2xl bg-white px-4 py-4 shadow-pop xl:px-6 xl:py-5', wide ? 'w-[1040px]' : 'w-[480px]')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="mb-3.5 flex items-center justify-between border-b border-slate-200 pb-3">

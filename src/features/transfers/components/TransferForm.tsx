@@ -140,7 +140,7 @@ export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }:
       <div className="mb-2 flex flex-col gap-2">
         {lines.map((line, i) => (
           <div key={i} className="rounded-xl border border-slate-200 p-3">
-            <div className="grid grid-cols-[1fr_110px_100px_120px_auto] items-end gap-2">
+            <div className="grid grid-cols-[minmax(160px,1fr)_100px_90px_110px_auto] items-end gap-2 xl:grid-cols-[1fr_110px_100px_120px_auto]">
               <Field label={t('common.product')} className="!mb-0">
                 <ProductSelect items={items} value={{ item_id: line.item_id, name: '' }} onChange={(v) => patch(i, { item_id: v.item_id })} />
               </Field>

@@ -25,9 +25,9 @@ interface StatCardProps {
 export function StatCard({ label, value, sub, tone = 'slate', big = false, className }: StatCardProps) {
   const c = tones[tone]
   return (
-    <div className={clsx('flex flex-col gap-2 rounded-2xl border-s-[5px] p-4 shadow-card', c.edge, big ? c.big : 'bg-surface', className)}>
+    <div className={clsx('flex min-w-0 flex-col gap-2 rounded-2xl border-s-[5px] p-4 shadow-card', c.edge, big ? c.big : 'bg-surface', className)}>
       <span className="text-[13px] text-slate-500">{label}</span>
-      <strong className={clsx(c.value, big ? 'text-[26px]' : 'text-[22px]')}>{value}</strong>
+      <strong className={clsx(c.value, '[overflow-wrap:anywhere]', big ? 'text-[22px] xl:text-[26px]' : 'text-[19px] xl:text-[22px]')}>{value}</strong>
       {sub && <small className="text-xs text-slate-500">{sub}</small>}
     </div>
   )

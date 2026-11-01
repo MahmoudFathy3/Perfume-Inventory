@@ -45,7 +45,9 @@
     "customers": "العملاء",
     "workspaces": "الشراكات",
     "transfers": "التحويلات",
-    "partners": "حسابات الشركاء"
+    "partners": "حسابات الشركاء",
+    "collapse": "تصغير القائمة",
+    "expand": "توسيع القائمة"
   },
   "condition": {
     "label": "الحالة",

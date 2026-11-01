@@ -7,7 +7,7 @@ export function Layout() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="min-w-0 flex-1 px-7 py-6">
+      <main className="min-w-0 flex-1 px-4 py-5 xl:px-7 xl:py-6">
         {/* لما المخزن يتغيّر، الصفحة بتتحمّل من الأول على بيانات المخزن الجديد */}
         <div key={active.id}>
           <Outlet />

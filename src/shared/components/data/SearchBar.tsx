@@ -9,7 +9,7 @@ export function SearchBar({ value, onChange }: { value: string; onChange: (value
       value={value}
       placeholder={t('common.searchPlaceholder')}
       aria-label={t('common.search')}
-      className="w-[280px]"
+      className="w-[220px] xl:w-[280px]"
       onChange={(e) => onChange(e.target.value)}
     />
   )

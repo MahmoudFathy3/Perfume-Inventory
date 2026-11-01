@@ -18,8 +18,8 @@ interface DataTableProps<T> {
   emptyText?: string
 }
 
-const th = 'border-b border-slate-200 bg-slate-50 px-3.5 py-3 text-start text-xs font-bold text-slate-500'
-const td = 'border-b border-slate-200 px-3.5 py-3 text-start align-middle'
+const th = 'border-b border-slate-200 bg-slate-50 px-2.5 py-3 text-start xl:px-3.5 text-xs font-bold text-slate-500'
+const td = 'border-b border-slate-200 px-2.5 py-3 text-start align-middle xl:px-3.5'
 
 /** جدول موحّد: عرّف الأعمدة (header + cell) وهو يرسم الباقي */
 export function DataTable<T>({ columns, rows, rowKey, emptyText }: DataTableProps<T>) {

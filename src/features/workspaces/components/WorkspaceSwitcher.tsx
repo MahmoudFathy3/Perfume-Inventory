@@ -1,18 +1,20 @@
 import clsx from 'clsx'
 import { Check, ChevronDown, Handshake, Settings2, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { useWorkspaces } from '../WorkspaceProvider'
 
-/** تبديل المخزن (الفعلي أو إحدى الشراكات) من أعلى القايمة الجانبية */
-export function WorkspaceSwitcher() {
+/** تبديل المخزن (الفعلي أو إحدى الشراكات) من أعلى القايمة الجانبية. compact: أيقونة بس والقايمة بتفتح جنبها */
+export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation()
   const toast = useToast()
   const navigate = useNavigate()
   const { workspaces, active, label, activate } = useWorkspaces()
   const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<CSSProperties>()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -23,6 +25,16 @@ export function WorkspaceSwitcher() {
 
   const icon = (kind: string) => (kind === 'personal' ? Store : Handshake)
   const ActiveIcon = icon(active.kind)
+
+  // في الوضع المصغّر القايمة fixed جنب الزرار، عشان الـ sidebar بيقص أي حاجة تطلع براه
+  function toggle() {
+    if (!open && compact && ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      const rtl = getComputedStyle(ref.current).direction === 'rtl'
+      setMenuPos({ top: r.top, ...(rtl ? { right: window.innerWidth - r.left + 8 } : { left: r.right + 8 }) })
+    }
+    setOpen(!open)
+  }
 
   async function choose(id: number) {
     setOpen(false)
@@ -40,20 +52,36 @@ export function WorkspaceSwitcher() {
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        title={t('workspaces.current')}
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2.5 rounded-xl bg-white/10 px-3 py-2.5 text-start text-white transition hover:bg-white/15"
+        title={compact ? `${t('workspaces.current')}: ${label(active)}` : t('workspaces.current')}
+        onClick={toggle}
+        className={clsx(
+          'flex w-full items-center gap-2.5 rounded-xl bg-white/10 py-2.5 text-start text-white transition hover:bg-white/15',
+          compact ? 'justify-center px-0' : 'px-3'
+        )}
       >
         <ActiveIcon className="h-5 w-5 shrink-0 text-teal-300" aria-hidden="true" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[11px] leading-tight text-slate-300">{t('workspaces.current')}</span>
-          <span className="block truncate font-bold">{label(active)}</span>
-        </span>
-        <ChevronDown className={clsx('h-4 w-4 shrink-0 transition', open && 'rotate-180')} aria-hidden="true" />
+        {compact ? (
+          <span className="sr-only">{label(active)}</span>
+        ) : (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] leading-tight text-slate-300">{t('workspaces.current')}</span>
+              <span className="block truncate font-bold">{label(active)}</span>
+            </span>
+            <ChevronDown className={clsx('h-4 w-4 shrink-0 transition', open && 'rotate-180')} aria-hidden="true" />
+          </>
+        )}
       </button>
 
       {open && (
-        <ul role="menu" className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-slate-800 shadow-pop">
+        <ul
+          role="menu"
+          style={compact ? menuPos : undefined}
+          className={clsx(
+            'z-30 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-slate-800 shadow-pop',
+            compact ? 'fixed w-60' : 'absolute inset-x-0 top-full mt-1.5'
+          )}
+        >
           {workspaces
             .filter((w) => !w.closed_at)
             .map((w) => {

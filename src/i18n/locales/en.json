@@ -45,7 +45,9 @@
     "customers": "Customers",
     "workspaces": "Partnerships",
     "transfers": "Transfers",
-    "partners": "Partner accounts"
+    "partners": "Partner accounts",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu"
   },
   "condition": {
     "label": "Condition",

@@ -84,7 +84,7 @@ export default function ItemDetailsPage() {
         <StockSummary condition="damaged" item={item} />
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5 xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
         <StatCard label={t('details.purchasedQty')} value={num(totals.purchased_qty)} sub={`${t('details.purchasesCost')}: ${money(totals.purchases_cost)}`} tone="indigo" />
         <StatCard label={t('details.soldQty')} value={num(totals.sold_qty)} sub={`${t('details.salesTotal')}: ${money(totals.sales_total)}`} tone="teal" />
         <StatCard label={t('details.returnsQty')} value={num(totals.sale_returns_qty + totals.purchase_returns_qty)} sub={t('details.returnsSub', { sale: totals.sale_returns_qty, purchase: totals.purchase_returns_qty })} />

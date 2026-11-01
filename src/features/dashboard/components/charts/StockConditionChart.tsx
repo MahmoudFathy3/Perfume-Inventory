@@ -17,9 +17,9 @@ export function StockConditionChart({ stock }: { stock: { new: number; damaged: 
   return (
     <ChartCard title={t('dashboard.chartStock')} empty={total === 0}>
       <div className="relative">
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={200}>
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={65} outerRadius={95} paddingAngle={3} cornerRadius={6} stroke="none">
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius={52} outerRadius={78} paddingAngle={3} cornerRadius={6} stroke="none">
               {data.map((d) => (
                 <Cell key={d.key} fill={C[d.key]} />
               ))}

@@ -44,26 +44,27 @@ export default function DashboardPage() {
         <>
           {/* ===== الثابت: مبيتأثرش بالفلتر ===== */}
           <h2 className="mb-3">{t('dashboard.stockTitle')} <small className="font-normal text-slate-500">— {t('dashboard.fixedNote')}</small></h2>
-          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] items-stretch gap-3.5 max-[1150px]:grid-cols-1">
-            <div className={`${grid} grid-cols-3 content-start`}>
-              <CapitalCard stock={s.stock} />
-              <StatCard label={t('dashboard.totalPieces')} value={num(s.stock.pieces)} sub={current} tone="teal" big />
-              <StatCard label={t('dashboard.newPieces')} value={num(s.stock.new_pieces)} sub={current} tone="teal" />
-              <StatCard label={t('dashboard.damagedPieces')} value={num(s.stock.damaged_pieces)} sub={current} tone="teal" />
-              <StatCard label={t('dashboard.salesToday')} value={money(s.today.total)} sub={t('dashboard.invoicesSub', { count: s.today.count })} tone="teal" big />
-              <StatCard label={t('dashboard.itemsCount')} value={num(s.counts.items)} sub={current} />
-              <StatCard label={t('dashboard.categoriesCount')} value={num(s.counts.categories)} sub={current} />
-              <StatCard label={t('dashboard.receivables')} value={money(s.receivables)} sub={t('dashboard.receivablesSub')} tone="indigo" big />
-              <StatCard label={t('dashboard.customersCount')} value={num(s.counts.customers)} sub={current} />
-            </div>
+          {/* رأس المال + دايرة المخزون جنب بعض، وتحتهم 8 كروت في صفين كاملين (4 × 2) */}
+          <div className={`${grid} lg:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_360px]`}>
+            <CapitalCard stock={s.stock} />
             <StockConditionChart stock={s.charts.stock} />
+          </div>
+          <div className={`${grid} mt-3.5 grid-cols-2 lg:grid-cols-4`}>
+            <StatCard label={t('dashboard.totalPieces')} value={num(s.stock.pieces)} sub={current} tone="teal" big />
+            <StatCard label={t('dashboard.newPieces')} value={num(s.stock.new_pieces)} sub={current} tone="teal" />
+            <StatCard label={t('dashboard.damagedPieces')} value={num(s.stock.damaged_pieces)} sub={current} tone="teal" />
+            <StatCard label={t('dashboard.salesToday')} value={money(s.today.total)} sub={t('dashboard.invoicesSub', { count: s.today.count })} tone="teal" big />
+            <StatCard label={t('dashboard.receivables')} value={money(s.receivables)} sub={t('dashboard.receivablesSub')} tone="indigo" big />
+            <StatCard label={t('dashboard.itemsCount')} value={num(s.counts.items)} sub={current} />
+            <StatCard label={t('dashboard.categoriesCount')} value={num(s.counts.categories)} sub={current} />
+            <StatCard label={t('dashboard.customersCount')} value={num(s.counts.customers)} sub={current} />
           </div>
 
           {/* ===== الفلتر + اللي بيتأثر بيه ===== */}
           <h2 className="mb-3 mt-7">{t('dashboard.periodTitle')} <small className="font-normal text-slate-500">— {t('dashboard.periodNote')}</small></h2>
           <DateRangeFilter range={range} onChange={setRange} />
 
-          <div className={`${grid} my-3.5 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]`}>
+          <div className={`${grid} my-3.5 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]`}>
             <StatCard label={t('dashboard.purchasesTotal')} value={money(s.purchases.total)} sub={t('dashboard.invoicesSub', { count: s.purchases.count })} tone="indigo" />
             <StatCard label={t('dashboard.salesPeriod')} value={money(s.sales.products)} sub={t('dashboard.invoicesSub', { count: s.sales.count })} tone="indigo" />
             <StatCard label={t('dashboard.saleReturns')} value={money(s.sales.returns)} sub={t('dashboard.returnsSub', { count: s.sales.returns_count })} tone="indigo" />
@@ -75,7 +76,7 @@ export default function DashboardPage() {
 
           <PartnersShare summary={s} />
 
-          <div className={`${grid} grid-cols-[repeat(auto-fit,minmax(440px,1fr))]`}>
+          <div className={`${grid} grid-cols-[repeat(auto-fit,minmax(min(440px,100%),1fr))]`}>
             <ProfitChart series={s.charts.series} profit={s.profit} previous={s.profit_previous ? s.profit_previous.profit : null} />
             <SalesPurchasesChart series={s.charts.series} />
             <TopProductsChart top={s.charts.top} />

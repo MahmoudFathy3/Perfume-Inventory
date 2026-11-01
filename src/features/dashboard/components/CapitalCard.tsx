@@ -14,10 +14,10 @@ export function CapitalCard({ stock }: { stock: DashboardSummary['stock'] }) {
     { label: t('dashboard.expectedProfit'), value: stock.expected_profit }
   ]
   return (
-    <Card className="col-span-3 border-s-[5px] border-primary-600 bg-gradient-to-l from-primary-50 to-white">
+    <Card className="flex flex-col border-s-[5px] border-primary-600 bg-gradient-to-l from-primary-50 to-white">
       <p className="text-[13px] text-slate-500">{t('dashboard.capital')} — {t('dashboard.capitalSub')}</p>
-      <strong className="my-1.5 block text-[34px] text-primary-700">{money(stock.cost_value)}</strong>
-      <dl className="mt-2 grid grid-cols-4 gap-3 border-t border-slate-200 pt-3">
+      <strong className="my-1.5 block text-[28px] text-primary-700 [overflow-wrap:anywhere] xl:text-[34px]">{money(stock.cost_value)}</strong>
+      <dl className="mt-auto grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3 border-t border-slate-200 pt-3">
         {parts.map((p) => (
           <div key={p.label}>
             <dt className="text-xs text-slate-500">{p.label}</dt>

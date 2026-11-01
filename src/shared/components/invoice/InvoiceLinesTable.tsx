@@ -13,8 +13,8 @@ interface InvoiceLinesTableProps {
   state: InvoiceLines
 }
 
-const th = 'border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-start text-xs font-bold text-slate-500'
-const td = 'px-3 py-2 align-top'
+const th = 'border-b border-slate-200 bg-slate-50 px-2 py-2.5 xl:px-3 text-start text-xs font-bold text-slate-500'
+const td = 'px-2 py-2 align-top xl:px-3'
 
 /** منتج جديد في فاتورة الشراء: بنطلب صنفه (والاسم الإنجليزي اختياري) */
 function NewProductFields({ line, index, categories, state }: { line: LineState; index: number; categories: Category[]; state: InvoiceLines }) {
@@ -43,7 +43,9 @@ export function InvoiceLinesTable({ kind, items, categories = [], state }: Invoi
 
   return (
     <>
-      <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-2xl bg-surface shadow-card">
+      {/* لو النافذة ضيقة الجدول بيعمل سكرول أفقي بدل ما الخانات تتقص */}
+      <div className="overflow-x-auto rounded-2xl bg-surface shadow-card">
+      <table className="w-full min-w-[640px] border-separate border-spacing-0">
         <thead>
           <tr>
             <th className={`${th} w-[34%]`}>{t('common.product')}</th>
@@ -102,6 +104,7 @@ export function InvoiceLinesTable({ kind, items, categories = [], state }: Invoi
           )
         })}
       </table>
+      </div>
       <Button className="mt-3" icon={Plus} onClick={state.add}>{t(purchase ? 'purchases.addLine' : 'sales.addLine')}</Button>
     </>
   )
