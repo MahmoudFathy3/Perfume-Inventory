@@ -1,0 +1,52 @@
+{
+  "name": "perfume-inventory",
+  "productName": "Perfume Inventory",
+  "version": "1.0.0",
+  "description": "Perfume Inventory - offline inventory system for perfume shops (Electron + React + TypeScript + SQLite)",
+  "author": "Perfume Inventory",
+  "private": true,
+  "main": "./out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "icons": "node scripts/generate-icons.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "postinstall": "electron-builder install-app-deps",
+    "dist": "npm run build && electron-builder --win --x64",
+    "dist:dir": "npm run build && electron-builder --win --x64 --dir",
+    "dist:zip": "npm run build && electron-builder --win zip --x64"
+  },
+  "dependencies": {
+    "better-sqlite3-multiple-ciphers": "^12.11.1",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "@fontsource/cairo": "^5.1.0",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "clsx": "^2.1.1",
+    "electron": "^33.2.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^2.3.0",
+    "i18next": "^23.16.8",
+    "lucide-react": "^0.460.0",
+    "png-to-ico": "^2.1.8",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.1.0",
+    "react-router-dom": "^6.28.0",
+    "react-select": "^5.10.2",
+    "recharts": "^2.15.4",
+    "sharp": "^0.33.5",
+    "tailwindcss": "^3.4.15",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

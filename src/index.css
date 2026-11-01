@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas font-sans text-[15px] text-slate-900;
+  }
+  h1 { @apply text-2xl font-bold; }
+  h2 { @apply text-[17px] font-bold; }
+  h3 { @apply text-[15px] font-bold; }
+}
+
+/* ---------- الطباعة: بنخفي التطبيق كله ونعرض منطقة الطباعة بس ---------- */
+#print-root { display: none; }
+
+@media print {
+  #root { display: none !important; }
+  #print-root { display: block !important; }
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff; }
+}

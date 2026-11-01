@@ -1,0 +1,50 @@
+import { PackageCheck, PackageX, Store, Tag } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { Condition, PriceType } from '@shared/types'
+import { invoke } from '@/shared/api/ipc'
+import { DropdownMenu } from '@/shared/components/ui'
+import { useToast } from '@/shared/toast/ToastProvider'
+import { itemsApi } from '@/features/items'
+import { buildPriceList } from '@/features/items/utils/priceList'
+import { useWorkspaces } from '@/features/workspaces'
+
+/** اسم الاختيار في رسالة النجاح (مثلًا "الديفوه بالجملة") */
+const OPTION_LABEL: Record<Condition, Record<PriceType, string>> = {
+  new: { retail: 'items.copyNewRetail', wholesale: 'items.copyNewWholesale' },
+  damaged: { retail: 'items.copyDamagedRetail', wholesale: 'items.copyDamagedWholesale' }
+}
+
+/**
+ * نسخ قايمة المخزن الحالي (الفعلي أو الشراكة): زرار للقطاعي وزرار للجملة، وكل واحد فيه السليم أو الديفوه.
+ * اسم المخزن ونوع القايمة في أول سطر، والمنتج اللي كميته صفر مبيتنسخش.
+ */
+export function CopyStockButtons() {
+  const { t, i18n } = useTranslation()
+  const toast = useToast()
+  const { active, label } = useWorkspaces()
+
+  async function copy(priceType: PriceType, condition: Condition) {
+    try {
+      const items = await itemsApi.list({})
+      const title = `${label(active)} — ${t(`items.copyTitle.${condition}`)}`
+      const text = buildPriceList(items, i18n.language, { priceType, condition, title, inStockOnly: true })
+      if (!text) return toast.info(t('dashboard.copyEmpty'))
+      await invoke('clipboard:writeText', { text })
+      toast.success(t('toast.copiedStock', { name: label(active), type: t(OPTION_LABEL[condition][priceType]) }))
+    } catch (e) {
+      toast.fail(e)
+    }
+  }
+
+  const menu = (priceType: PriceType) => [
+    { key: 'new', label: t('dashboard.copyCondition.new'), icon: PackageCheck, onSelect: () => void copy(priceType, 'new') },
+    { key: 'damaged', label: t('dashboard.copyCondition.damaged'), icon: PackageX, onSelect: () => void copy(priceType, 'damaged') }
+  ]
+
+  return (
+    <>
+      <DropdownMenu icon={Tag} label={t('dashboard.copyRetail')} items={menu('retail')} />
+      <DropdownMenu icon={Store} label={t('dashboard.copyWholesale')} items={menu('wholesale')} />
+    </>
+  )
+}
