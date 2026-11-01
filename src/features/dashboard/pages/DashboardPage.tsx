@@ -1,0 +1,87 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { PageHeader, StatCard } from '@/shared/components/ui'
+import { StockCountButton } from '@/features/items'
+import { useWorkspaces } from '@/features/workspaces'
+import { formatMoney, formatNumber } from '@/shared/utils/format'
+import { CapitalCard } from '../components/CapitalCard'
+import { CopyStockButtons } from '../components/CopyStockButtons'
+import { PartnersShare } from '../components/PartnersShare'
+import { WorkspacesOverview } from '../components/WorkspacesOverview'
+import { ProfitChart } from '../components/charts/ProfitChart'
+import { SalesPurchasesChart } from '../components/charts/SalesPurchasesChart'
+import { StockConditionChart } from '../components/charts/StockConditionChart'
+import { TopProductsChart } from '../components/charts/TopProductsChart'
+import { DateRangeFilter } from '../components/DateRangeFilter'
+import type { DateRange } from '../components/DateRangeFilter'
+import { useDashboard } from '../hooks/useDashboard'
+
+const grid = 'grid gap-3.5'
+
+export default function DashboardPage() {
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
+  const { summary: s } = useDashboard(range)
+  const { active, label } = useWorkspaces()
+
+  const money = (v: number) => formatMoney(v, lang)
+  const num = (v: number) => formatNumber(v, lang)
+  const current = t('dashboard.currentNote')
+
+  return (
+    <>
+      <PageHeader title={<>{t('dashboard.title')} <small className="font-normal text-slate-500">— {label(active)}</small></>}>
+        <StockCountButton />
+        <CopyStockButtons />
+      </PageHeader>
+
+      <WorkspacesOverview />
+
+      {!s ? (
+        <p className="p-10 text-center text-slate-500">{t('common.loading')}</p>
+      ) : (
+        <>
+          {/* ===== الثابت: مبيتأثرش بالفلتر ===== */}
+          <h2 className="mb-3">{t('dashboard.stockTitle')} <small className="font-normal text-slate-500">— {t('dashboard.fixedNote')}</small></h2>
+          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] items-stretch gap-3.5 max-[1150px]:grid-cols-1">
+            <div className={`${grid} grid-cols-3 content-start`}>
+              <CapitalCard stock={s.stock} />
+              <StatCard label={t('dashboard.totalPieces')} value={num(s.stock.pieces)} sub={current} tone="teal" big />
+              <StatCard label={t('dashboard.newPieces')} value={num(s.stock.new_pieces)} sub={current} tone="teal" />
+              <StatCard label={t('dashboard.damagedPieces')} value={num(s.stock.damaged_pieces)} sub={current} tone="teal" />
+              <StatCard label={t('dashboard.salesToday')} value={money(s.today.total)} sub={t('dashboard.invoicesSub', { count: s.today.count })} tone="teal" big />
+              <StatCard label={t('dashboard.itemsCount')} value={num(s.counts.items)} sub={current} />
+              <StatCard label={t('dashboard.categoriesCount')} value={num(s.counts.categories)} sub={current} />
+              <StatCard label={t('dashboard.receivables')} value={money(s.receivables)} sub={t('dashboard.receivablesSub')} tone="indigo" big />
+              <StatCard label={t('dashboard.customersCount')} value={num(s.counts.customers)} sub={current} />
+            </div>
+            <StockConditionChart stock={s.charts.stock} />
+          </div>
+
+          {/* ===== الفلتر + اللي بيتأثر بيه ===== */}
+          <h2 className="mb-3 mt-7">{t('dashboard.periodTitle')} <small className="font-normal text-slate-500">— {t('dashboard.periodNote')}</small></h2>
+          <DateRangeFilter range={range} onChange={setRange} />
+
+          <div className={`${grid} my-3.5 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]`}>
+            <StatCard label={t('dashboard.purchasesTotal')} value={money(s.purchases.total)} sub={t('dashboard.invoicesSub', { count: s.purchases.count })} tone="indigo" />
+            <StatCard label={t('dashboard.salesPeriod')} value={money(s.sales.products)} sub={t('dashboard.invoicesSub', { count: s.sales.count })} tone="indigo" />
+            <StatCard label={t('dashboard.saleReturns')} value={money(s.sales.returns)} sub={t('dashboard.returnsSub', { count: s.sales.returns_count })} tone="indigo" />
+            <StatCard label={t('dashboard.shopShipping')} value={money(s.sales.shop_shipping)} sub={t('dashboard.shopShippingSub')} tone="slate" />
+            <StatCard label={t('dashboard.collected')} value={money(s.collected)} sub={t('dashboard.collectedSub')} tone="green" />
+            <StatCard label={t('dashboard.invoicesCount')} value={`${num(s.purchases.count)} / ${num(s.sales.count)}`} />
+            <StatCard label={t('dashboard.actualProfit')} value={money(s.profit)} tone="green" big />
+          </div>
+
+          <PartnersShare summary={s} />
+
+          <div className={`${grid} grid-cols-[repeat(auto-fit,minmax(440px,1fr))]`}>
+            <ProfitChart series={s.charts.series} profit={s.profit} previous={s.profit_previous ? s.profit_previous.profit : null} />
+            <SalesPurchasesChart series={s.charts.series} />
+            <TopProductsChart top={s.charts.top} />
+          </div>
+        </>
+      )}
+    </>
+  )
+}

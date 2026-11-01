@@ -1,0 +1,43 @@
+# إعدادات بناء ملف التنصيب (npm run dist)
+appId: com.perfume.inventory
+productName: Perfume Inventory
+copyright: Perfume Inventory
+
+directories:
+  buildResources: build   # فيه icon.ico
+  output: dist
+
+# اللي بيتحط في التطبيق: الكود المبني بس + حزم التشغيل (better-sqlite3-multiple-ciphers و exceljs)
+files:
+  - out/**
+  - resources/**   # أيقونة النافذة (بتتحمّل من هنا وقت التشغيل)
+  - package.json
+  - '!**/*.map'
+
+asar: true
+asarUnpack:
+  - '**/*.node'   # ملف SQLite الأصلي (better-sqlite3-multiple-ciphers) لازم يتفك من الـ asar
+  - resources/**
+npmRebuild: true
+publish: null
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: Perfume-Inventory-${version}-win.${ext}   # النسخة المضغوطة (npm run dist:zip)
+
+nsis:
+  artifactName: Perfume-Inventory-Setup-${version}.${ext}
+  oneClick: false                         # شاشة تنصيب كاملة (اختيار المكان)
+  perMachine: false                       # تنصيب للمستخدم الحالي (من غير صلاحيات أدمن)
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Perfume Inventory
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false         # مهم: حذف البرنامج مايمسحش الداتا بيز بتاعتك
