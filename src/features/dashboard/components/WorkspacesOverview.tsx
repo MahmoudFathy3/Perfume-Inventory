@@ -1,10 +1,9 @@
 import clsx from 'clsx'
-import { Handshake, Store } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@/shared/hooks/useQuery'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney, formatNumber } from '@/shared/utils/format'
-import { useWorkspaces } from '@/features/workspaces'
+import { useWorkspaces, workspaceIcon } from '@/features/workspaces'
 import { dashboardApi } from '../api/dashboard.api'
 
 /** كروت مختصرة لكل المخازن المفتوحة (الفعلي والشراكات). الضغط على كارت بيبدّل عليه. بتظهر لو في شراكة واحدة على الأقل. */
@@ -21,7 +20,7 @@ export function WorkspacesOverview() {
       <h2 className="mb-3">{t('dashboard.allStores')}</h2>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3.5">
         {data.map((o) => {
-          const Icon = o.workspace.kind === 'personal' ? Store : Handshake
+          const Icon = workspaceIcon(o.workspace.kind)
           const rows: [string, string, string?][] = [
             [t('dashboard.capital'), formatMoney(o.cost_value, lang)],
             [t('dashboard.totalPieces'), formatNumber(o.pieces, lang)],

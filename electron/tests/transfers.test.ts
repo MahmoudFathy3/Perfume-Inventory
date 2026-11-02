@@ -3,6 +3,7 @@ import test from 'node:test'
 import type { TransferInput } from '@shared/types'
 import * as categories from '../features/categories/categories.service'
 import { exportData } from '../features/export/export.service'
+import { listAllStores } from '../features/items/items.allStores'
 import * as items from '../features/items/items.service'
 import * as partners from '../features/partners/partners.service'
 import * as sales from '../features/sales/sales.service'
@@ -54,6 +55,16 @@ test('رأس مال: القطع بتتنقل بتكلفتها، والمنتج �
 test('بالنص: نقل من غير شريك ولا حسابات', () => {
   move(PERSONAL, shop, 'half', 2)
   assert.equal(shopItem().new_quantity, 6)
+})
+
+test('بيع من المخزون الفعلي للشراكة من غير سعر: بسعر البيع القطاعي', () => {
+  const id = move(PERSONAL, shop, 'sale', 1, { partner_id: mahmoud })
+  const t = transfers.getTransfer({ id })
+  assert.deepEqual([t.total_cost, t.total_price, t.items[0].unit_price], [500, 2000, 2000])
+  // القطعة بتدخل الشراكة بسعر شراء = سعر البيع القطاعي: (6 × 500 + 1 × 2000) / 7
+  assert.equal(Math.round(shopItem().new_purchase_price * 100) / 100, 714.29)
+  transfers.removeTransfer({ id }) // نرجّع كل حاجة زي ما كانت للاختبارات اللي بعده
+  assert.deepEqual([shopItem().new_quantity, stockOf(personalItem, 'new').quantity], [6, 4])
 })
 
 test('بيع للشراكة بسعر محدد: تكلفة الشراكة بتبقى السعر وبتدخل في المتوسط، والمبلغ مستحق للشريك', () => {
@@ -178,6 +189,24 @@ test('حركات المنتج بتعرض التحويلات، وفروق الك�
     assert.equal(d.movements.filter((m) => m.type === 'transfer_in').length, 3)
     assert.deepEqual([d.adjustments.new, d.adjustments.damaged], [0, 0])
   })
+})
+
+test('قايمة كل المخازن: المنتج المتكرر بيظهر مرة واحدة بكمياته متجمّعة وبأسعار المخزون الفعلي', () => {
+  // نفس المنتج في الشراكة التانية مكتوب بالتاء المربوطة وبسعر مختلف، ومنتج موجود في الشراكة بس
+  withWorkspace(other, () => {
+    const cat = categories.createCategory({ name: 'دخوني' })
+    items.createItem({ category_id: cat, name_ar: 'خليفة', stock: { new: { quantity: 3, purchase_price: 1, selling_price: 9999, wholesale_price: 0 }, damaged: { quantity: 2, purchase_price: 1, selling_price: 50, wholesale_price: 40 } } })
+    items.createItem({ category_id: cat, name_ar: 'روز', stock: { new: { quantity: 1, purchase_price: 100, selling_price: 300, wholesale_price: 250 }, damaged: zero } })
+  })
+  const mine = stockOf(personalItem, 'new').quantity
+  const inShop = shopItem().new_quantity
+
+  const all = listAllStores()
+  assert.deepEqual(all.map((i) => i.name_ar).sort(), ['خليفه', 'روز'])
+  const khalifa = all.find((i) => i.name_ar === 'خليفه')!
+  assert.equal(khalifa.new_quantity, mine + 3 + inShop)
+  assert.equal(khalifa.new_selling_price, 2000) // سعر المخزون الفعلي
+  assert.deepEqual([khalifa.damaged_quantity, khalifa.damaged_selling_price], [2, 50]) // الفعلي ملوش سعر ديفوه، فبيتكمّل من الشراكة
 })
 
 test('المنتج المحوَّل مبيتحذفش نهائيًا (بيتأرشف)، والشراكة اللي عليها تحويلات متتحذفش', () => {

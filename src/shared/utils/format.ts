@@ -4,8 +4,9 @@ import { CURRENCY } from '../constants'
 // الأرقام دايمًا بالإنجليزي (0-9) حتى في الواجهة العربية
 const numberLocale = (lang: string) => (lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US')
 
-export const formatMoney = (value: number | null | undefined, lang: string): string =>
-  new Intl.NumberFormat(numberLocale(lang), { style: 'currency', currency: CURRENCY }).format(value || 0)
+/** currency: عملة التطبيق افتراضيًا (المخزن الخارجي بيستخدم الريال) */
+export const formatMoney = (value: number | null | undefined, lang: string, currency: string = CURRENCY): string =>
+  new Intl.NumberFormat(numberLocale(lang), { style: 'currency', currency }).format(value || 0)
 
 export const formatNumber = (value: number | null | undefined, lang: string): string =>
   new Intl.NumberFormat(numberLocale(lang)).format(value || 0)

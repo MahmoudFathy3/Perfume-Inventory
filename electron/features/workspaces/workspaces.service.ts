@@ -26,6 +26,15 @@ function assertUniqueLabel(name: string, partners: string[], excludeId = 0): voi
   if (taken) throw new AppError('DUPLICATE_NAME')
 }
 
+/** اسم المخزن الخارجي: مطلوب ومينفعش يتكرر بين المخازن الخارجية */
+function warehouseName(input: WorkspaceInput, excludeId = 0): string {
+  const name = String(input.name ?? '').trim()
+  if (!name) throw new AppError('NAME_REQUIRED')
+  const taken = repo.findAll().some((w) => w.kind === 'warehouse' && w.id !== excludeId && normalizeArabic(w.name) === normalizeArabic(name))
+  if (taken) throw new AppError('DUPLICATE_NAME')
+  return name
+}
+
 function editable(id: number) {
   const ws = repo.findById(id)
   if (!ws) throw new AppError('WORKSPACE_NOT_FOUND')
@@ -40,6 +49,7 @@ export function listWorkspaces(): Workspace[] {
 
 export const createWorkspace = (input: WorkspaceInput): number =>
   getDb().transaction(() => {
+    if (input.kind === 'warehouse') return repo.insert('warehouse', warehouseName(input))
     const { name, partners } = clean(input)
     assertUniqueLabel(name, partners)
     const id = repo.insert('partnership', name)
@@ -49,7 +59,7 @@ export const createWorkspace = (input: WorkspaceInput): number =>
 
 export const updateWorkspace = ({ id, ...input }: WorkspaceInput & { id: number }): void =>
   getDb().transaction(() => {
-    editable(id)
+    if (editable(id).kind === 'warehouse') return repo.rename(id, warehouseName(input, id))
     const { name, partners } = clean(input)
     assertUniqueLabel(name, partners, id)
     repo.rename(id, name)

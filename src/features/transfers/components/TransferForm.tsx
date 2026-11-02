@@ -65,8 +65,11 @@ export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }:
   const details = lines.map((l) => {
     const item = items.find((i) => i.id === l.item_id)
     const cost = item ? item[`${l.condition}_purchase_price`] : 0
-    const price = kind === 'sale' && l.price !== '' ? Number(l.price) || 0 : cost
-    return { item, available: item ? item[`${l.condition}_quantity`] : 0, cost, quantity: Number(l.quantity) || 0, price }
+    // البيع من المخزون الفعلي للشراكة بسعر البيع القطاعي افتراضيًا (زي الـ backend)
+    const retail = item ? item[`${l.condition}_selling_price`] : 0
+    const defaultPrice = kind === 'sale' && fromId === PERSONAL_ID && retail > 0 ? retail : cost
+    const price = kind === 'sale' && l.price !== '' ? Number(l.price) || 0 : defaultPrice
+    return { item, available: item ? item[`${l.condition}_quantity`] : 0, cost, quantity: Number(l.quantity) || 0, price, defaultPrice }
   })
   const totalCost = details.reduce((sum, d) => sum + d.quantity * d.cost, 0)
   const totalPrice = details.reduce((sum, d) => sum + d.quantity * d.price, 0)
@@ -154,7 +157,7 @@ export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }:
               </Field>
               {kind === 'sale' ? (
                 <Field label={t('transfers.unitPrice')} className="!mb-0">
-                  <NumberInput value={line.price} placeholder={String(details[i].cost)} onChange={(e) => patch(i, { price: e.target.value })} />
+                  <NumberInput value={line.price} placeholder={String(details[i].defaultPrice)} onChange={(e) => patch(i, { price: e.target.value })} />
                 </Field>
               ) : <span />}
               <Button variant="ghost" icon={Trash2} disabled={lines.length === 1} aria-label={t('common.removeLine')} onClick={() => setLines(lines.filter((_, k) => k !== i))} />

@@ -7,7 +7,7 @@ export interface CleanTransferLine {
   item_id: number
   condition: Condition
   quantity: number
-  /** null = بنفس تكلفة المصدر */
+  /** null = السعر الافتراضي (القطاعي في البيع من المخزون الفعلي للشراكة، وإلا تكلفة المصدر) */
   unit_price: number | null
 }
 
@@ -40,6 +40,7 @@ export function cleanTransfer(input: TransferInput): CleanTransfer {
   const to = openWorkspace(input.to_workspace_id)
   const involvesPersonal = from.id === PERSONAL_WORKSPACE_ID || to.id === PERSONAL_WORKSPACE_ID
   if (from.id === to.id || !involvesPersonal) throw new AppError('INVALID_TRANSFER')
+  if ((from.id === PERSONAL_WORKSPACE_ID ? to : from).kind !== 'partnership') throw new AppError('INVALID_TRANSFER')
 
   if (!KINDS.includes(input.kind)) throw new AppError('INVALID_TYPE')
 
