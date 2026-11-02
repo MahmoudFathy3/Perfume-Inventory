@@ -1,8 +1,8 @@
 import type { Condition, PriceType, SaleInput, ShippingPayer } from '@shared/types'
 import { AppError, money, optionalMoney, parseCondition, qty, today } from '../../lib/errors'
-import { activeWorkspaceId, PERSONAL_WORKSPACE_ID } from '../../lib/workspace'
+import { activeWorkspaceId } from '../../lib/workspace'
 import { findById as findCustomer } from '../customers/customers.repository'
-import { findPartners } from '../workspaces/workspaces.repository'
+import { findById as findWorkspace, findPartners } from '../workspaces/workspaces.repository'
 
 export interface CleanLine {
   item_id: number
@@ -26,7 +26,7 @@ export interface CleanSale {
 /** في الشراكة لازم نعرف مين من الشركاء اللي باع */
 function cleanPartner(value: unknown): number | null {
   const ws = activeWorkspaceId()
-  if (ws === PERSONAL_WORKSPACE_ID) return null
+  if (findWorkspace(ws)?.kind !== 'partnership') return null
   const id = Number(value)
   if (!id) throw new AppError('PARTNER_REQUIRED')
   if (!findPartners(ws).some((p) => p.id === id)) throw new AppError('PARTNER_NOT_FOUND')

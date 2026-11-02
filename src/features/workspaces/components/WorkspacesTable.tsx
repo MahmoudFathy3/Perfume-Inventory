@@ -23,7 +23,7 @@ export function WorkspacesTable({ rows, onSwitch, onEdit, onClose, onReopen, onD
     {
       key: 'partners',
       header: t('workspaces.partners'),
-      cell: (r) => (r.kind === 'personal' ? '—' : r.partners.map((p) => `${p.name} (${p.share_percent}%)`).join(' • '))
+      cell: (r) => (r.partners.length === 0 ? '—' : r.partners.map((p) => `${p.name} (${p.share_percent}%)`).join(' • '))
     },
     {
       key: 'status',

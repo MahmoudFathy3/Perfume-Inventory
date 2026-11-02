@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader, StatCard } from '@/shared/components/ui'
 import { StockCountButton } from '@/features/items'
+import { WarehousePage } from '@/features/warehouse'
 import { useWorkspaces } from '@/features/workspaces'
 import { formatMoney, formatNumber } from '@/shared/utils/format'
 import { CapitalCard } from '../components/CapitalCard'
@@ -18,7 +19,13 @@ import { useDashboard } from '../hooks/useDashboard'
 
 const grid = 'grid gap-3.5'
 
+/** الرئيسية: في المخزن الخارجي هي صفحة منتجاته وشحناته (ملوش أرقام فلوس) */
 export default function DashboardPage() {
+  const { active } = useWorkspaces()
+  return active.kind === 'warehouse' ? <WarehousePage /> : <StoreDashboard />
+}
+
+function StoreDashboard() {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
   const [range, setRange] = useState<DateRange>({ from: '', to: '' })

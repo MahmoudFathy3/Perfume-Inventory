@@ -1,13 +1,14 @@
 import clsx from 'clsx'
-import { Check, ChevronDown, Handshake, Settings2, Store } from 'lucide-react'
+import { Check, ChevronDown, Settings2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/shared/toast/ToastProvider'
+import { workspaceIcon as icon } from '../utils/workspaceIcon'
 import { useWorkspaces } from '../WorkspaceProvider'
 
-/** تبديل المخزن (الفعلي أو إحدى الشراكات) من أعلى القايمة الجانبية. compact: أيقونة بس والقايمة بتفتح جنبها */
+/** تبديل المخزن (الفعلي أو إحدى الشراكات أو مخزن خارجي) من أعلى القايمة الجانبية. compact: أيقونة بس والقايمة بتفتح جنبها */
 export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -23,7 +24,6 @@ export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
     return () => document.removeEventListener('mousedown', close)
   }, [])
 
-  const icon = (kind: string) => (kind === 'personal' ? Store : Handshake)
   const ActiveIcon = icon(active.kind)
 
   // في الوضع المصغّر القايمة fixed جنب الزرار، عشان الـ sidebar بيقص أي حاجة تطلع براه

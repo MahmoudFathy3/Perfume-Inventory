@@ -35,7 +35,8 @@ export interface Page<T> {
 }
 
 // ---------- المساحات (المخزون الفعلي والشراكات) ----------
-export type WorkspaceKind = 'personal' | 'partnership'
+/** warehouse = مخزن خارجي (السعودية): كميات وشحنات بس */
+export type WorkspaceKind = 'personal' | 'partnership' | 'warehouse'
 
 export interface WorkspacePartner {
   id: number
@@ -68,10 +69,12 @@ export interface WorkspaceOverview {
 }
 
 export interface WorkspaceInput {
-  /** اسم الشراكة (لو فاضي بيتكوّن من أسماء الشركاء) */
+  /** شراكة (الافتراضي) أو مخزن خارجي. وقت التعديل النوع مبيتغيرش. */
+  kind?: 'partnership' | 'warehouse'
+  /** اسم الشراكة (لو فاضي بيتكوّن من أسماء الشركاء). للمخزن الخارجي مطلوب. */
   name?: string
-  /** أسماء الشريكين (القسمة 50/50) */
-  partners: string[]
+  /** أسماء الشريكين (القسمة 50/50). المخزن الخارجي ملوش شركاء. */
+  partners?: string[]
 }
 
 // ---------- كلمة السر والحماية ----------
@@ -186,6 +189,55 @@ export interface PartnerLedger {
   profit: number
   accounts: PartnerAccount[]
   payments: PartnerPayment[]
+}
+
+// ---------- مخزن السعودية (كميات وشحنات بس) ----------
+/** منتج في المخزن الخارجي. المبالغ للقطعة الواحدة بالريال. */
+export interface WarehouseItem {
+  id: number
+  name: string
+  quantity: number
+  /** السعر اللي اتدفع في القطعة */
+  unit_price: number
+  shipping: number
+  customs: number
+  notes: string | null
+}
+
+export interface WarehouseItemInput {
+  name: string
+  quantity: NumLike
+  unit_price?: NumLike
+  shipping?: NumLike
+  customs?: NumLike
+  notes?: string
+}
+
+export type ShipmentStatus = 'in_transit' | 'arrived'
+
+export interface WarehouseShipmentLine {
+  item_id: number
+  name: string
+  quantity: number
+}
+
+export interface WarehouseShipment {
+  id: number
+  ship_date: string
+  /** المخزن اللي الشحنة رايحاله في مصر (الفعلي أو شراكة) */
+  workspace_id: number
+  status: ShipmentStatus
+  arrived_date: string | null
+  notes: string | null
+  pieces: number
+  items: WarehouseShipmentLine[]
+}
+
+export interface WarehouseShipmentInput {
+  ship_date?: string
+  workspace_id: number
+  notes?: string
+  items: { item_id: number | ''; quantity: NumLike }[]
 }
 
 // ---------- الأصناف والمنتجات ----------
