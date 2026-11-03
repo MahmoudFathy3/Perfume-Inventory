@@ -18,13 +18,14 @@ import { customersApi, useCustomers } from '../../customers'
 import { useItems } from '../../items'
 import { useWorkspaces } from '../../workspaces'
 import { salesApi } from '../api/sales.api'
+import { useForeignItems } from '../hooks/useForeignItems'
 import { useSales } from '../hooks/useSales'
 
 export default function SalesPage() {
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const [search, setSearch] = useState('')
-  const { active } = useWorkspaces()
+  const { active, label } = useWorkspaces()
   const partners = active.kind === 'partnership' ? active.partners : []
   const [partnerFilter, setPartnerFilter] = useState('') // '' = كل الشركاء
   const [form, setForm] = useState<{ sale: SaleWithLines | null } | null>(null) // sale = null: فاتورة جديدة
@@ -34,11 +35,13 @@ export default function SalesPage() {
   const { reload } = pagination
   const { items, reload: reloadItems } = useItems('')
   const { customers, reload: reloadCustomers } = useCustomers()
+  const { foreign, reload: reloadForeign } = useForeignItems()
 
   /** أي تغيير في فاتورة بيع بيأثر على المخزن والعملاء */
   const refresh = () => {
     reload()
     reloadItems()
+    reloadForeign()
     reloadCustomers()
   }
 
@@ -88,6 +91,7 @@ export default function SalesPage() {
       <InvoicesTable
         kind="sale"
         rows={pagination.pageRows}
+        showPartner={partners.length > 0}
         onView={async (row) => {
           const full = await salesApi.get({ id: row.id })
           if (full) setInvoice(fromSale(full))
@@ -99,7 +103,7 @@ export default function SalesPage() {
 
       {form && (
         <Modal title={t(form.sale ? 'sales.edit' : 'sales.add')} onClose={() => setForm(null)} wide>
-          <SaleForm items={items} customers={customers} partners={partners} onCreateCustomer={createCustomer} initial={form.sale} onSubmit={save} onCancel={() => setForm(null)} />
+          <SaleForm items={items} foreign={foreign} storeLabel={label(active)} customers={customers} partners={partners} onCreateCustomer={createCustomer} initial={form.sale} onSubmit={save} onCancel={() => setForm(null)} />
         </Modal>
       )}
       {invoice && <InvoiceViewer data={invoice} onClose={() => setInvoice(null)} />}

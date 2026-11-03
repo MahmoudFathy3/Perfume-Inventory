@@ -24,11 +24,14 @@ export interface SaleLineRow {
   quantity: number
   purchase_price: number
   selling_price: number
+  source_workspace_id?: number | null
+  source_item_id?: number | null
+  transfer_price?: number | null
 }
 
 /** الفاتورة مع المدفوع والمرتجع والمتبقي (المتبقي = الإجمالي - المرتجع - المدفوع، مش أقل من صفر) */
 const selectSales = () => `
-  SELECT s.id, s.customer_id, cu.name AS customer_name, s.partner_id, wp.name AS partner_name, s.sale_date, s.price_type, s.shipping_payer,
+  SELECT s.id, s.customer_id, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, s.partner_id, wp.name AS partner_name, s.sale_date, s.price_type, s.shipping_payer,
          s.shipping_cost, s.total, s.notes,
          ROUND(COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2) AS paid,
          ROUND(COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0), 2) AS returns_total,
@@ -89,10 +92,14 @@ export const updateHeader = (id: number, h: SaleHeaderInput) =>
 
 export const insertLine = (l: SaleLineRow) =>
   void execute(
-    `INSERT INTO sale_items(sale_id, item_id, category_id, condition, quantity, purchase_price, selling_price)
-     VALUES (@sale_id, @item_id, @category_id, @condition, @quantity, @purchase_price, @selling_price)`,
-    { ...l }
+    `INSERT INTO sale_items(sale_id, item_id, category_id, condition, quantity, purchase_price, selling_price, source_workspace_id, source_item_id, transfer_price)
+     VALUES (@sale_id, @item_id, @category_id, @condition, @quantity, @purchase_price, @selling_price, @source_workspace_id, @source_item_id, @transfer_price)`,
+    { ...l, source_workspace_id: l.source_workspace_id ?? null, source_item_id: l.source_item_id ?? null, transfer_price: l.transfer_price ?? null }
   )
+
+/** الفاتورة اتعملت من تحويل للشريك (بتتعدّل وتتحذف من التحويل بس) */
+export const isPartnerTransferSale = (saleId: number): boolean =>
+  !!queryOne('SELECT 1 FROM transfers WHERE partner_sale_id = ?', [saleId])
 
 export const deleteLines = (saleId: number) => void execute('DELETE FROM sale_items WHERE sale_id = ?', [saleId])
 export const setTotal = (id: number, total: number) => void execute('UPDATE sales SET total = ? WHERE id = ?', [total, id])

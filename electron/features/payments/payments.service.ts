@@ -2,6 +2,7 @@ import type { CollectInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
 import * as salesRepo from '../sales/sales.repository'
+import { syncSalePayments } from '../transfers/transfers.sales'
 import * as repo from './payments.repository'
 
 /** تسامح صغير في المقارنة علشان كسور الفلوس */
@@ -24,7 +25,9 @@ export function collect(input: CollectInput): number[] {
       if (!sale) throw new AppError('SALE_NOT_FOUND')
       if (sale.remaining <= 0) throw new AppError('NOTHING_DUE')
       if (amount > sale.remaining + EPS) throw new AppError('PAYMENT_EXCEEDS_REMAINING')
-      return [repo.insert(sale.id, amount, date, notes)]
+      const id = repo.insert(sale.id, amount, date, notes)
+      syncSalePayments(sale.id)
+      return [id]
     }
 
     if (!input.customer_id) throw new AppError('CUSTOMER_REQUIRED')
@@ -42,11 +45,17 @@ export function collect(input: CollectInput): number[] {
       if (left <= 0) break
       const part = round2(Math.min(left, sale.remaining))
       ids.push(repo.insert(sale.id, part, date, notes))
+      syncSalePayments(sale.id)
       left = round2(left - part)
     }
     return ids
   })()
 }
 
-/** حذف دفعة اتسجلت بالغلط (المتبقي على الفاتورة بيرجع يزيد) */
-export const removePayment = ({ id }: { id: number }) => repo.remove(id)
+/** حذف دفعة اتسجلت بالغلط (المتبقي على الفاتورة بيرجع يزيد، وتحويلاتها بترجع متدفعتش) */
+export const removePayment = ({ id }: { id: number }): void =>
+  getDb().transaction(() => {
+    const saleId = repo.saleIdOf(id)
+    repo.remove(id)
+    if (saleId) syncSalePayments(saleId)
+  })()

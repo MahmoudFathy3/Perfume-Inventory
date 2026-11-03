@@ -8,6 +8,7 @@ import { formatMoney, formatNumber } from '@/shared/utils/format'
 import { CapitalCard } from '../components/CapitalCard'
 import { CopyStockButtons } from '../components/CopyStockButtons'
 import { PartnersShare } from '../components/PartnersShare'
+import { TransfersMoney } from '../components/TransfersMoney'
 import { WorkspacesOverview } from '../components/WorkspacesOverview'
 import { ProfitChart } from '../components/charts/ProfitChart'
 import { SalesPurchasesChart } from '../components/charts/SalesPurchasesChart'
@@ -66,6 +67,8 @@ function StoreDashboard() {
             <StatCard label={t('dashboard.categoriesCount')} value={num(s.counts.categories)} sub={current} />
             <StatCard label={t('dashboard.customersCount')} value={num(s.counts.customers)} sub={current} />
           </div>
+
+          <TransfersMoney />
 
           {/* ===== الفلتر + اللي بيتأثر بيه ===== */}
           <h2 className="mb-3 mt-7">{t('dashboard.periodTitle')} <small className="font-normal text-slate-500">— {t('dashboard.periodNote')}</small></h2>

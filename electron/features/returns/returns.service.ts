@@ -3,6 +3,8 @@ import { getDb } from '../../database/connection'
 import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError, money, parseCondition, qty, round2, today } from '../../lib/errors'
 import * as itemStock from '../items/stock.repository'
+import { isPartnerTransferSale } from '../sales/sales.repository'
+import { returnableToSource, returnToSaleSource, syncSalePayments, undoReturnToSaleSource } from '../transfers/transfers.sales'
 import * as repo from './returns.repository'
 
 export const listReturns = (p: { search?: string }) => repo.findAll(p)
@@ -16,6 +18,8 @@ export function createReturn(input: ReturnInput): number {
   const invoiceId = type === 'sale' ? input.sale_id : input.purchase_id
   if (!invoiceId) throw new AppError('INVOICE_REQUIRED')
   if (!Array.isArray(input.items) || input.items.length === 0) throw new AppError('NO_LINES')
+  // فاتورة الشريك (من تحويل): القطع في الشراكة مش هنا، فالرجوع بيكون بتعديل التحويل
+  if (type === 'sale' && isPartnerTransferSale(invoiceId)) throw new AppError('SALE_FROM_TRANSFER')
 
   return getDb().transaction(() => {
     const returnId = repo.insertHeader({
@@ -35,6 +39,16 @@ export function createReturn(input: ReturnInput): number {
 
       const available = repo.originalQuantity(type, invoiceId, l.item_id) - repo.returnedQuantity(type, invoiceId, l.item_id)
       if (quantity > available) throw new AppError('RETURN_EXCEEDS')
+
+      // قطع جاية من مخزن تاني بترجع له مباشرة (والتحويل بيقل)، من غير ما تدخل مخزن الفاتورة
+      const toSource = type === 'sale' && !!l.to_source
+      if (toSource) {
+        if (quantity > returnableToSource(invoiceId, l.item_id, condition)) throw new AppError('RETURN_EXCEEDS_SOURCE')
+        returnToSaleSource(invoiceId, l.item_id, condition, quantity)
+        repo.insertLine({ return_id: returnId, item_id: l.item_id, quantity, unit_price, condition, to_source: 1 })
+        total += quantity * unit_price
+        continue
+      }
 
       itemStock.ensureStock(l.item_id, condition)
       const stock = itemStock.getStock(l.item_id, condition)!
@@ -56,6 +70,7 @@ export function createReturn(input: ReturnInput): number {
     }
 
     repo.setTotal(returnId, round2(total))
+    if (type === 'sale') syncSalePayments(invoiceId)
     return returnId
   })()
 }
@@ -71,6 +86,10 @@ export function removeReturn({ id }: { id: number }): void {
     const invoiceId = (record.type === 'sale' ? record.sale_id : record.purchase_id)!
 
     for (const l of repo.findLineRows(id)) {
+      if (record.type === 'sale' && l.to_source) {
+        undoReturnToSaleSource(invoiceId, l.item_id, l.condition, l.quantity)
+        continue
+      }
       itemStock.ensureStock(l.item_id, l.condition)
       const stock = itemStock.getStock(l.item_id, l.condition)!
       if (record.type === 'sale') {
@@ -85,5 +104,6 @@ export function removeReturn({ id }: { id: number }): void {
       }
     }
     repo.remove(id)
+    if (record.type === 'sale') syncSalePayments(invoiceId)
   })()
 }

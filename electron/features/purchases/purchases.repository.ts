@@ -6,6 +6,7 @@ import { activeWorkspaceId, inWorkspace, scoped } from '../../lib/workspace'
 
 export interface PurchaseHeaderInput {
   supplier_name: string
+  partner_id: number | null
   purchase_date: string
   shipping_cost: number
   total: number
@@ -24,11 +25,15 @@ export interface PurchaseLineRow {
   wholesale_price: number
 }
 
-type ListOptions = { search?: string }
+type ListOptions = { search?: string; partnerId?: number }
+
+/** الفاتورة واسم الشريك اللي اشترى */
+const SELECT = 'SELECT p.*, wp.name AS partner_name FROM purchases p LEFT JOIN workspace_partners wp ON wp.id = p.partner_id'
 
 function listQuery(opts: ListOptions) {
-  const { where, params } = scoped('workspace_id', searchClause(['supplier_name', 'notes'], opts.search))
-  return { sql: `SELECT * FROM purchases ${where} ORDER BY purchase_date DESC, id DESC`, params }
+  const { where, params } = scoped('p.workspace_id', searchClause(['p.supplier_name', 'p.notes', 'wp.name'], opts.search))
+  const byPartner = opts.partnerId ? 'AND p.partner_id = @partnerId' : ''
+  return { sql: `${SELECT} ${where} ${byPartner} ORDER BY p.purchase_date DESC, p.id DESC`, params: { ...params, partnerId: opts.partnerId } }
 }
 
 /** كل الفواتير (للقوايم المنسدلة) */
@@ -44,7 +49,7 @@ export function findPage(opts: ListOptions, page: PageParams): Page<Purchase> {
 }
 
 export function findById(id: number): PurchaseWithLines | null {
-  const purchase = queryOne<Purchase>(`SELECT * FROM purchases WHERE id = ? AND ${inWorkspace('workspace_id')}`, [id])
+  const purchase = queryOne<Purchase>(`${SELECT} WHERE p.id = ? AND ${inWorkspace('p.workspace_id')}`, [id])
   if (!purchase) return null
   const items = queryAll<PurchaseLine>(
     `SELECT pi.*, i.name_ar, i.name_en FROM purchase_items pi
@@ -60,7 +65,7 @@ export const findLineRows = (purchaseId: number) =>
 
 export const updateHeader = (id: number, h: PurchaseHeaderInput) =>
   void execute(
-    `UPDATE purchases SET supplier_name = @supplier_name, purchase_date = @purchase_date,
+    `UPDATE purchases SET supplier_name = @supplier_name, partner_id = @partner_id, purchase_date = @purchase_date,
        shipping_cost = @shipping_cost, total = @total, notes = @notes WHERE id = @id`,
     { ...h, id }
   )
@@ -74,8 +79,8 @@ export const returnsCount = (purchaseId: number): number =>
 
 export const insertHeader = (h: PurchaseHeaderInput) =>
   execute(
-    `INSERT INTO purchases(workspace_id, supplier_name, purchase_date, shipping_cost, total, notes)
-     VALUES (@workspace_id, @supplier_name, @purchase_date, @shipping_cost, @total, @notes)`,
+    `INSERT INTO purchases(workspace_id, supplier_name, partner_id, purchase_date, shipping_cost, total, notes)
+     VALUES (@workspace_id, @supplier_name, @partner_id, @purchase_date, @shipping_cost, @total, @notes)`,
     { ...h, workspace_id: activeWorkspaceId() }
   )
 

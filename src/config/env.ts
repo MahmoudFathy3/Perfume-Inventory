@@ -5,6 +5,8 @@ const raw = (import.meta as unknown as { env?: Record<string, string | undefined
 
 /** إعدادات الواجهة من ملف .env (شوف .env.example) */
 export const ENV = {
+  /** وضع التطوير: الـ main بيشتغل على داتا بيز منفصلة، والواجهة بتعرض علامة DEV */
+  isDev: (globalThis as { api?: { isDev?: boolean } }).api?.isDev === true,
   /** كود عملة العرض (ISO) */
   currency: raw.RENDERER_VITE_CURRENCY?.trim() || 'EGP',
   /** لغة أول تشغيل (قبل ما المستخدم يختار من الإعدادات) */

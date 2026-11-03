@@ -19,7 +19,7 @@ type ListOptions = { search?: string; owing?: boolean }
 function listQuery(opts: ListOptions) {
   const { where, params } = scoped('c.workspace_id', searchClause(['c.name', 'c.phone'], opts.search))
   const sql = `${BALANCES}
-     SELECT c.id, c.name, c.phone, COUNT(b.id) AS sales_count,
+     SELECT c.id, c.name, c.phone, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = c.id) AS is_partner, COUNT(b.id) AS sales_count,
             ROUND(COALESCE(SUM(b.total), 0), 2) AS total,
             ROUND(COALESCE(SUM(b.paid), 0), 2) AS paid,
             ROUND(COALESCE(SUM(MAX(0, ROUND(b.total - b.returns_total - b.paid, 2))), 0), 2) AS remaining
@@ -41,7 +41,7 @@ export function findPage(opts: ListOptions, page: PageParams): Page<CustomerSumm
 }
 
 export const findById = (id: number) =>
-  queryOne<Customer>(`SELECT id, name, phone FROM customers WHERE id = ? AND ${inWorkspace('workspace_id')}`, [id])
+  queryOne<Customer>(`SELECT id, name, phone, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = customers.id) AS is_partner FROM customers WHERE id = ? AND ${inWorkspace('workspace_id')}`, [id])
 
 /** عميل بنفس الاسم (من غير تفرقة همزة/تاء مربوطة)، مع استثناء العميل نفسه وقت التعديل */
 export const findByName = (name: string, excludeId = 0) =>

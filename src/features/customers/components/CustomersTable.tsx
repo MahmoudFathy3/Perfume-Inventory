@@ -1,5 +1,6 @@
 import { Eye, HandCoins, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { customerLabel } from '@/shared/utils/partyName'
 import type { CustomerSummary } from '@shared/types'
 import { Button, DataTable, RowActions } from '@/shared/components/ui'
 import type { Column } from '@/shared/components/ui'
@@ -19,7 +20,7 @@ export function CustomersTable({ rows, onDetails, onCollect, onEdit, onDelete }:
   const money = (v: number) => formatMoney(v, lang)
 
   const columns: Column<CustomerSummary>[] = [
-    { key: 'name', header: t('common.name'), cell: (r) => <Button variant="link" onClick={() => onDetails(r)}>{r.name}</Button> },
+    { key: 'name', header: t('common.name'), cell: (r) => <Button variant="link" onClick={() => onDetails(r)}>{customerLabel(r.name, r.is_partner, t)}</Button> },
     { key: 'phone', header: t('customers.phone'), cell: (r) => <span dir="ltr">{r.phone}</span> },
     { key: 'count', header: t('customers.salesCount'), cell: (r) => formatNumber(r.sales_count, lang) },
     { key: 'total', header: t('common.total'), cell: (r) => money(r.total) },

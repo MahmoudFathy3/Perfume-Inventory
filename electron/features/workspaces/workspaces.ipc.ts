@@ -7,6 +7,8 @@ export function register(handle: HandleFn, { session }: IpcContext): void {
   handle('workspaces:create', s.createWorkspace)
   handle('workspaces:update', s.updateWorkspace)
   handle('workspaces:activate', s.activateWorkspace)
+  handle('workspaces:owner', s.getOwner)
+  handle('workspaces:setOwner', s.setOwner)
   // قفل وفتح وحذف الشراكة محتاجين كلمة سر التطبيق
   handle('workspaces:close', ({ id, password }: { id: number; password: string }) => {
     session.confirmPassword(password)

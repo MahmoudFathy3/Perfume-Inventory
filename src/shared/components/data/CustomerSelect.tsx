@@ -4,6 +4,7 @@ import type { Customer } from '@shared/types'
 import { getLanguage } from '@/i18n/languages'
 import { useToast } from '../../toast/ToastProvider'
 import { normalizeArabic, sameText } from '../../utils/normalizeArabic'
+import { customerLabel } from '../../utils/partyName'
 import { createSelectStyles } from './selectStyles'
 
 interface CustomerOption {
@@ -30,7 +31,7 @@ export function CustomerSelect({ customers, value, onChange, onCreate }: Custome
 
   const options: CustomerOption[] = customers.map((c) => ({
     value: c.id,
-    label: c.phone ? `${c.name} — ${c.phone}` : c.name,
+    label: c.phone ? `${customerLabel(c.name, c.is_partner, t)} — ${c.phone}` : customerLabel(c.name, c.is_partner, t),
     search: normalizeArabic(`${c.name} ${c.phone ?? ''}`)
   }))
 

@@ -1,10 +1,15 @@
 import { app, BrowserWindow, Menu } from 'electron'
 import { initBackend } from './app/bootstrap'
+import { IS_DEV } from './config/runtime'
 import { APP_ID, APP_NAME, launchWithSplash } from './windows'
 import { denyPermissions } from './windows/security'
 
 // الاسم لازم يتحدد قبل أي استخدام لمسار بيانات التطبيق (userData)
 app.setName(APP_NAME)
+
+// وضع التطوير: فولدر بيانات لوحده (داتا بيز + كلمة سر + إعدادات + نسخ احتياطية) علشان البرودكشن ميتأثرش.
+// لازم قبل الـ single instance lock، فنسخة الديف والمتسطّبة يقدروا يشتغلوا مع بعض.
+if (IS_DEV) app.setPath('userData', `${app.getPath('userData')} (Dev)`)
 
 // ويندوز: بيربط الأيقونة والتجميع في شريط المهام بالتطبيق المنصّب
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
