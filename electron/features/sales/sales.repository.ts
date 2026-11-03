@@ -7,6 +7,7 @@ import { findBySale } from '../payments/payments.repository'
 
 export interface SaleHeaderInput {
   customer_id: number | null
+  partner_id: number | null
   sale_date: string
   price_type: PriceType
   shipping_payer: ShippingPayer
@@ -27,22 +28,23 @@ export interface SaleLineRow {
 
 /** الفاتورة مع المدفوع والمرتجع والمتبقي (المتبقي = الإجمالي - المرتجع - المدفوع، مش أقل من صفر) */
 const selectSales = () => `
-  SELECT s.id, s.customer_id, cu.name AS customer_name, s.sale_date, s.price_type, s.shipping_payer,
+  SELECT s.id, s.customer_id, cu.name AS customer_name, s.partner_id, wp.name AS partner_name, s.sale_date, s.price_type, s.shipping_payer,
          s.shipping_cost, s.total, s.notes,
          ROUND(COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2) AS paid,
          ROUND(COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0), 2) AS returns_total,
          MAX(0, ROUND(s.total - COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0)
                               - COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2)) AS remaining
-  FROM sales s LEFT JOIN customers cu ON cu.id = s.customer_id
+  FROM sales s LEFT JOIN customers cu ON cu.id = s.customer_id LEFT JOIN workspace_partners wp ON wp.id = s.partner_id
   WHERE ${inWorkspace('s.workspace_id')}`
 
-type ListOptions = { search?: string; customerId?: number }
+type ListOptions = { search?: string; customerId?: number; partnerId?: number }
 
 function listQuery(opts: ListOptions) {
   const { where, params } = searchClause(['customer_name', 'notes'], opts.search, 'AND')
   const byCustomer = opts.customerId ? 'AND customer_id = @customerId' : ''
-  const sql = `SELECT * FROM (${selectSales()}) WHERE 1 = 1 ${byCustomer} ${where} ORDER BY sale_date DESC, id DESC`
-  return { sql, params: { ...params, customerId: opts.customerId } }
+  const byPartner = opts.partnerId ? 'AND partner_id = @partnerId' : ''
+  const sql = `SELECT * FROM (${selectSales()}) WHERE 1 = 1 ${byCustomer} ${byPartner} ${where} ORDER BY sale_date DESC, id DESC`
+  return { sql, params: { ...params, customerId: opts.customerId, partnerId: opts.partnerId } }
 }
 
 /** كل الفواتير (للقوايم المنسدلة وكشف حساب العميل) */
@@ -73,14 +75,14 @@ export const findLineRows = (saleId: number) => queryAll<SaleLineRow>('SELECT * 
 
 export const insertHeader = (h: SaleHeaderInput) =>
   execute(
-    `INSERT INTO sales(workspace_id, customer_id, sale_date, price_type, shipping_payer, shipping_cost, total, notes)
-     VALUES (@workspace_id, @customer_id, @sale_date, @price_type, @shipping_payer, @shipping_cost, @total, @notes)`,
+    `INSERT INTO sales(workspace_id, customer_id, partner_id, sale_date, price_type, shipping_payer, shipping_cost, total, notes)
+     VALUES (@workspace_id, @customer_id, @partner_id, @sale_date, @price_type, @shipping_payer, @shipping_cost, @total, @notes)`,
     { ...h, workspace_id: activeWorkspaceId() }
   )
 
 export const updateHeader = (id: number, h: SaleHeaderInput) =>
   void execute(
-    `UPDATE sales SET customer_id = @customer_id, sale_date = @sale_date, price_type = @price_type,
+    `UPDATE sales SET customer_id = @customer_id, partner_id = @partner_id, sale_date = @sale_date, price_type = @price_type,
        shipping_payer = @shipping_payer, shipping_cost = @shipping_cost, total = @total, notes = @notes WHERE id = @id`,
     { ...h, id }
   )

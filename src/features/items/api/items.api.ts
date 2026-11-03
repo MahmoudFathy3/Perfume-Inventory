@@ -4,6 +4,8 @@ import { invoke } from '@/shared/api/ipc'
 export const itemsApi = {
   /** كل المنتجات (للقوايم المنسدلة ونسخ القايمة) */
   list: (p: { search?: string }) => invoke<Item[]>('items:list', p),
+  /** منتجات المخزون الفعلي وكل الشراكات من غير تكرار (الكميات متجمّعة) */
+  allStores: () => invoke<Item[]>('items:all-stores'),
   /** صفحة واحدة (الجدول) */
   page: (p: { search?: string } & PageParams) => invoke<Page<Item>>('items:page', p),
   details: (p: { id: number }) => invoke<ItemDetails>('items:details', p),

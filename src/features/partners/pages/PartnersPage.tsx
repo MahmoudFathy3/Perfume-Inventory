@@ -6,9 +6,12 @@ import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useQuery } from '@/shared/hooks/useQuery'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney } from '@/shared/utils/format'
+import { DateRangeFilter } from '../../dashboard'
+import type { DateRange } from '../../dashboard'
 import { useWorkspaces } from '../../workspaces'
 import { partnersApi } from '../api/partners.api'
 import { PartnerAccountsTable } from '../components/PartnerAccountsTable'
+import { PartnerSalesTable } from '../components/PartnerSalesTable'
 import { PaymentForm } from '../components/PaymentForm'
 import { PaymentsTable } from '../components/PaymentsTable'
 
@@ -34,6 +37,8 @@ function Accounts() {
   const { active, label } = useWorkspaces()
   const ledger = useQuery(() => partnersApi.ledger(), [])
   const [settling, setSettling] = useState<PartnerAccount | null>(null)
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
+  const sales = useQuery(() => partnersApi.sales({ from: range.from || null, to: range.to || null }), [range.from, range.to])
   const { reload } = ledger
 
   async function pay(payload: PartnerPaymentInput) {
@@ -63,6 +68,10 @@ function Accounts() {
           </div>
           <PartnerAccountsTable rows={data.accounts} onSettle={setSettling} />
           <p className="mt-3 text-sm text-slate-500">{t('partners.formula')}</p>
+
+          <h2 className="mb-3 mt-6">{t('partners.salesTitle')}</h2>
+          <DateRangeFilter range={range} onChange={setRange} />
+          <div className="mt-3">{sales.data && <PartnerSalesTable rows={sales.data} />}</div>
 
           <h2 className="mb-3 mt-6">{t('partners.payments')}</h2>
           <PaymentsTable rows={data.payments} onDelete={ask} />

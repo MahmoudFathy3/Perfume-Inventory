@@ -110,6 +110,7 @@
     "collectedSub": "In the selected period",
     "copyRetail": "Copy retail",
     "copyWholesale": "Copy wholesale",
+    "copyAllStores": "Copy all stores",
     "copyEmpty": "No in-stock products to copy in this store",
     "copyCondition": {
       "new": "Good",
@@ -203,7 +204,10 @@
     "paidAll": "The whole invoice",
     "edit": "Edit sale invoice",
     "deleteNote": "The quantities will go back to stock.",
-    "deletePaymentsWarning": "Recorded payments ({{amount}}) will be deleted with it"
+    "deletePaymentsWarning": "Recorded payments ({{amount}}) will be deleted with it",
+    "soldBy": "Sold by",
+    "allPartners": "All partners",
+    "noPartner": "Not set"
   },
   "returns": {
     "title": "Returns",
@@ -284,6 +288,7 @@
     "PARTNER_REQUIRED": "Choose the partner",
     "PARTNER_NOT_FOUND": "That partner is not in this partnership",
     "TRANSFER_NOT_FOUND": "Transfer not found",
+    "SHIPMENT_NOT_FOUND": "Shipment not found",
     "LOCKED": "The app is locked",
     "WRONG_PASSWORD": "Wrong password",
     "WEAK_PASSWORD": "The password must be at least 8 characters",
@@ -294,7 +299,8 @@
     "INVALID_IDLE": "Invalid auto-lock time",
     "PASSWORD_MISMATCH": "The two passwords do not match",
     "BACKUP_KEY_MISMATCH": "This backup belongs to a different installation and cannot be opened here",
-    "AUTO_BACKUP_FAILED": "Automatic backup failed. Make sure the folder exists (or the drive is connected) and has free space"
+    "AUTO_BACKUP_FAILED": "Automatic backup failed. Make sure the folder exists (or the drive is connected) and has free space",
+    "NOT_WAREHOUSE": "This page is for external warehouses only. Switch to one from the sidebar."
   },
   "app": {
     "name": "Perfume Inventory"
@@ -378,6 +384,7 @@
       "stock_value": "Stock value",
       "supplier": "Supplier",
       "customer": "Customer",
+      "partner": "Partner",
       "party": "Supplier / customer",
       "price_type": "Price type",
       "shipping_cost": "Shipping",
@@ -535,7 +542,12 @@
     "passwordPrompt": "Enter the app password to confirm",
     "closeNote": "A closed partnership leaves the switcher but its data stays saved. Only an empty partnership can be deleted.",
     "deleteNote": "Only an empty partnership is deleted. One with data is closed instead.",
-    "switched": "Switched to: {{name}}"
+    "switched": "Switched to: {{name}}",
+    "addWarehouse": "New external warehouse",
+    "editWarehouse": "Edit external warehouse",
+    "warehouseName": "Warehouse name",
+    "warehouseNameHint": "e.g. Saudi warehouse",
+    "warehouseNote": "An external warehouse holds quantities and shipments only (no prices or sales). Pick it from the store switcher like any store."
   },
   "transfers": {
     "title": "Transfers",
@@ -571,6 +583,38 @@
       "half": "Moved with no partner accounting: pieces carry over at cost only."
     }
   },
+  "warehouse": {
+    "note": "Quantities and shipments, amounts in SAR. When a shipment arrives, record it as a purchase in the store that received it.",
+    "items": "Products",
+    "shipments": "Shipments",
+    "addItem": "Add product",
+    "editItem": "Edit product",
+    "newShipment": "New shipment",
+    "destination": "Going to",
+    "shipDate": "Ship date",
+    "contents": "Contents",
+    "pieces": "Pieces",
+    "status": "Status",
+    "inTransit": "In transit",
+    "arrived": "Arrived",
+    "markArrived": "Arrived",
+    "markInTransit": "Back to in transit",
+    "arrivedNote": "Don't forget to record this shipment as a purchase in the store that received it",
+    "available": "Available",
+    "addLine": "Add product",
+    "stockPieces": "Pieces in {{name}}",
+    "inTransitPieces": "Pieces in transit",
+    "shipmentsCount": "{{count}} shipments",
+    "deleteShipmentNote": "Quantities go back to the warehouse.",
+    "unitPrice": "Price / piece",
+    "shipping": "Shipping / piece",
+    "customs": "Customs / piece",
+    "unitCost": "Cost / piece",
+    "totalCost": "Total",
+    "perPieceNote": "Amounts are per piece in SAR. Cost per piece = price + shipping + customs; total = quantity × cost per piece.",
+    "stockValue": "Stock value",
+    "stockValueSub": "Current quantities × cost per piece"
+  },
   "partners": {
     "title": "Partner accounts",
     "partner": "Partner",
@@ -589,7 +633,12 @@
     "payments": "Settlements",
     "partnershipProfit": "Partnership profit",
     "formula": "Balance = partner's profit share + what they sold to the partnership - what was settled. Capital is shown separately and returns to the partner on liquidation.",
-    "personalNote": "Partner accounts live inside partnerships. Switch to a partnership from the sidebar."
+    "personalNote": "Partner accounts live inside partnerships. Switch to a partnership from the sidebar.",
+    "salesTitle": "Sales by partner",
+    "invoices": "Invoices",
+    "returns": "Returns",
+    "netSales": "Net sales",
+    "collected": "Collected"
   },
   "auth": {
     "password": "Password",

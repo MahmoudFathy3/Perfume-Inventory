@@ -15,10 +15,10 @@ const ALL_TIME: repo.Range = { from: null, to: null }
 /** الربح الفعلي للمخزن النشط من أول يوم (بيستخدمه ملخص المخازن وحسابات الشركاء) */
 export const lifetimeProfit = (): number => profitOf(ALL_TIME, repo.sales(ALL_TIME).shop_shipping)
 
-/** ملخص كل المخازن المفتوحة (الفعلي والشراكات): بيتحسب لكل واحد على بياناته هو بس */
+/** ملخص كل المخازن المفتوحة (الفعلي والشراكات، من غير المخازن الخارجية): بيتحسب لكل واحد على بياناته هو بس */
 export function overview(): WorkspaceOverview[] {
   return listWorkspaces()
-    .filter((w) => !w.closed_at)
+    .filter((w) => !w.closed_at && w.kind !== 'warehouse')
     .map((workspace) =>
       withWorkspace(workspace.id, () => {
         const stock = repo.stock()

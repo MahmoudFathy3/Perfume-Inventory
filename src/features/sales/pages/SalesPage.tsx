@@ -10,12 +10,13 @@ import type { InvoiceDocData } from '@/shared/components/invoice/invoice.types'
 import { InvoicesTable } from '@/shared/components/invoice/InvoicesTable'
 import { InvoiceViewer } from '@/shared/components/invoice/InvoiceViewer'
 import { SaleForm } from '@/shared/components/invoice/SaleForm'
-import { Button, Modal, PageHeader } from '@/shared/components/ui'
+import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney } from '@/shared/utils/format'
 import { customersApi, useCustomers } from '../../customers'
 import { useItems } from '../../items'
+import { useWorkspaces } from '../../workspaces'
 import { salesApi } from '../api/sales.api'
 import { useSales } from '../hooks/useSales'
 
@@ -23,9 +24,13 @@ export default function SalesPage() {
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const [search, setSearch] = useState('')
+  const { active } = useWorkspaces()
+  const partners = active.kind === 'partnership' ? active.partners : []
+  const [partnerFilter, setPartnerFilter] = useState('') // '' = كل الشركاء
   const [form, setForm] = useState<{ sale: SaleWithLines | null } | null>(null) // sale = null: فاتورة جديدة
   const [invoice, setInvoice] = useState<InvoiceDocData | null>(null)
-  const pagination = useSales(search)
+  const partnerId = partnerFilter ? Number(partnerFilter) : undefined
+  const pagination = useSales(search, partnerId)
   const { reload } = pagination
   const { items, reload: reloadItems } = useItems('')
   const { customers, reload: reloadCustomers } = useCustomers()
@@ -68,8 +73,15 @@ export default function SalesPage() {
   return (
     <>
       <PageHeader title={t('sales.title')}>
+        {partners.length > 0 && (
+          <Segmented
+            value={partnerFilter}
+            onChange={setPartnerFilter}
+            options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
+          />
+        )}
         <SearchBar value={search} onChange={setSearch} />
-        <ExportMenu target={{ dataset: 'sales', search }} />
+        <ExportMenu target={{ dataset: 'sales', search, partnerId }} />
         <Button variant="primary" icon={Plus} onClick={() => setForm({ sale: null })}>{t('sales.add')}</Button>
       </PageHeader>
 
@@ -87,7 +99,7 @@ export default function SalesPage() {
 
       {form && (
         <Modal title={t(form.sale ? 'sales.edit' : 'sales.add')} onClose={() => setForm(null)} wide>
-          <SaleForm items={items} customers={customers} onCreateCustomer={createCustomer} initial={form.sale} onSubmit={save} onCancel={() => setForm(null)} />
+          <SaleForm items={items} customers={customers} partners={partners} onCreateCustomer={createCustomer} initial={form.sale} onSubmit={save} onCancel={() => setForm(null)} />
         </Modal>
       )}
       {invoice && <InvoiceViewer data={invoice} onClose={() => setInvoice(null)} />}

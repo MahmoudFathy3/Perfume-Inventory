@@ -21,13 +21,15 @@ export const insertPartner = (workspaceId: number, name: string, share: number) 
   void execute('INSERT INTO workspace_partners(workspace_id, name, share_percent) VALUES (?, ?, ?)', [workspaceId, name, share])
 export const renamePartner = (id: number, name: string) => void execute('UPDATE workspace_partners SET name = ? WHERE id = ?', [name, id])
 
-/** هل في المساحة أي بيانات (أصناف / منتجات / عملاء / فواتير / تحويلات)؟ المساحة اللي فيها بيانات مينفعش تتحذف، بتتقفل بس. */
+/** هل في المساحة أي بيانات (أصناف / منتجات / عملاء / فواتير / تحويلات / شحنات)؟ المساحة اللي فيها بيانات مينفعش تتحذف، بتتقفل بس. */
 export const hasData = (id: number): boolean =>
   !!queryOne(
     `SELECT 1 FROM categories WHERE workspace_id = @id UNION ALL SELECT 1 FROM items WHERE workspace_id = @id
      UNION ALL SELECT 1 FROM customers WHERE workspace_id = @id UNION ALL SELECT 1 FROM purchases WHERE workspace_id = @id
      UNION ALL SELECT 1 FROM sales WHERE workspace_id = @id UNION ALL SELECT 1 FROM returns WHERE workspace_id = @id
      UNION ALL SELECT 1 FROM transfers WHERE from_workspace_id = @id OR to_workspace_id = @id
-     UNION ALL SELECT 1 FROM partner_payments WHERE workspace_id = @id LIMIT 1`,
+     UNION ALL SELECT 1 FROM partner_payments WHERE workspace_id = @id
+     UNION ALL SELECT 1 FROM warehouse_items WHERE warehouse_id = @id
+     UNION ALL SELECT 1 FROM warehouse_shipments WHERE warehouse_id = @id OR workspace_id = @id LIMIT 1`,
     { id }
   )

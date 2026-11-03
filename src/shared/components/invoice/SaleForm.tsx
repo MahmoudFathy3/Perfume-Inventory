@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Customer, Item, PriceType, SaleInput, SaleWithLines, ShippingPayer } from '@shared/types'
+import type { Customer, Item, PriceType, SaleInput, SaleWithLines, ShippingPayer, WorkspacePartner } from '@shared/types'
 import { PRICE_TYPES, SHIPPING_PAYERS } from '../../constants'
 import { useSubmit } from '../../hooks/useSubmit'
 import { formatMoney, todayString } from '../../utils/format'
@@ -13,6 +13,8 @@ import { saleToLines, toSaleLines, useInvoiceLines } from './useInvoiceLines'
 interface SaleFormProps {
   items: Item[]
   customers: Customer[]
+  /** شركاء الشراكة النشطة (فاضية في المخزون الفعلي): لازم نختار مين اللي باع */
+  partners?: WorkspacePartner[]
   /** بيعمل عميل جديد من قايمة العملاء وبيرجّع id */
   onCreateCustomer: (name: string) => Promise<number>
   /** فاتورة موجودة (وضع التعديل) */
@@ -22,13 +24,14 @@ interface SaleFormProps {
 }
 
 /**
- * فاتورة بيع: العميل (بالبحث) + قطاعي/جملة + سطور المنتجات + الشحن (على العميل أو المحل) + المدفوع.
+ * فاتورة بيع: الشريك اللي باع (في الشراكة) + العميل (بالبحث) + قطاعي/جملة + سطور المنتجات + الشحن (على العميل أو المحل) + المدفوع.
  * المدفوع بيتحدد وقت الإنشاء بس (الافتراضي كله)، والتحصيل بعد كده من صفحة العملاء.
  */
-export function SaleForm({ items, customers, onCreateCustomer, initial, onSubmit, onCancel }: SaleFormProps) {
+export function SaleForm({ items, customers, partners = [], onCreateCustomer, initial, onSubmit, onCancel }: SaleFormProps) {
   const { t, i18n } = useTranslation()
   const editing = !!initial
   const [customerId, setCustomerId] = useState<number | ''>(initial?.customer_id ?? '')
+  const [partnerId, setPartnerId] = useState(initial?.partner_id ? String(initial.partner_id) : '')
   const [header, setHeader] = useState({
     date: initial?.sale_date ?? todayString(),
     shipping: initial?.shipping_cost ? String(initial.shipping_cost) : '',
@@ -53,6 +56,7 @@ export function SaleForm({ items, customers, onCreateCustomer, initial, onSubmit
   const { submit, saving } = useSubmit(() =>
     onSubmit({
       customer_id: customerId || null,
+      partner_id: partnerId ? Number(partnerId) : null,
       sale_date: header.date,
       price_type: priceType,
       shipping_payer: payer,
@@ -65,6 +69,12 @@ export function SaleForm({ items, customers, onCreateCustomer, initial, onSubmit
 
   return (
     <form onSubmit={submit}>
+      {partners.length > 0 && (
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-slate-500">{t('sales.soldBy')}</span>
+          <Segmented value={partnerId} onChange={setPartnerId} options={partners.map((p) => ({ value: String(p.id), label: p.name }))} />
+        </div>
+      )}
       <div className="my-2 grid grid-cols-2 gap-x-4">
         <Field label={t('sales.customerName')}>
           <CustomerSelect customers={customers} value={customerId} onChange={setCustomerId} onCreate={onCreateCustomer} />

@@ -20,5 +20,5 @@ export const DATASETS: Record<ExportDataset, SheetDef[]> = {
 }
 
 export function loadSheets(dataset: ExportDataset, params: ExportParams): ExportSheet[] {
-  return DATASETS[dataset].map((d) => ({ key: d.key, layout: d.layout ?? 'table', columns: d.columns, rows: d.rows(params) }))
+  return DATASETS[dataset].map((d) => ({ key: d.key, layout: d.layout ?? 'table', columns: typeof d.columns === 'function' ? d.columns() : d.columns, rows: d.rows(params) }))
 }

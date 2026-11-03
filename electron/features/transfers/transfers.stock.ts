@@ -2,7 +2,7 @@ import type { Condition } from '@shared/types'
 import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError } from '../../lib/errors'
 import { normalizeArabic } from '../../lib/normalizeArabic'
-import { withWorkspace } from '../../lib/workspace'
+import { PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
 import * as categories from '../categories/categories.repository'
 import * as items from '../items/items.repository'
 import * as itemStock from '../items/stock.repository'
@@ -24,6 +24,15 @@ export interface OutgoingLine {
   wholesale_price: number
 }
 
+/**
+ * سعر القطعة لو مش مكتوب: البيع من المخزون الفعلي للشراكة بسعر البيع القطاعي (ولو مش متحدد بالتكلفة)،
+ * وأي تحويل تاني بتكلفة المصدر.
+ */
+function defaultPrice(c: CleanTransfer, stock: { purchase_price: number; selling_price: number }): number {
+  const retail = c.kind === 'sale' && c.from === PERSONAL_WORKSPACE_ID && stock.selling_price > 0
+  return retail ? stock.selling_price : stock.purchase_price
+}
+
 /** بيخصم القطع من المخزن المصدر بتكلفتها (متوسط تكلفة المصدر) ويرجّع بياناتها للوجهة */
 export function takeOut(c: CleanTransfer): OutgoingLine[] {
   return withWorkspace(c.from, () =>
@@ -38,7 +47,7 @@ export function takeOut(c: CleanTransfer): OutgoingLine[] {
         condition: l.condition,
         quantity: l.quantity,
         unit_cost: stock.purchase_price,
-        unit_price: l.unit_price ?? stock.purchase_price,
+        unit_price: l.unit_price ?? defaultPrice(c, stock),
         name_ar: item.name_ar,
         name_en: item.name_en,
         category_name: item.category_name,

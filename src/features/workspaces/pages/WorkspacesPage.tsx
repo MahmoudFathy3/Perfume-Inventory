@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Plus, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, WorkspaceInput } from '@shared/types'
@@ -19,17 +19,18 @@ const GUARDED = {
 
 type GuardedAction = keyof typeof GUARDED
 
-/** إدارة المخازن: المخزون الفعلي (ثابت) والشراكات (إضافة، تعديل، قفل، حذف الفاضية) */
+/** إدارة المخازن: المخزون الفعلي (ثابت) والشراكات والمخازن الخارجية (إضافة، تعديل، قفل، حذف الفاضية) */
 export default function WorkspacesPage() {
   const { t } = useTranslation()
   const toast = useToast()
   const { workspaces, activate, reload, label } = useWorkspaces()
-  const [editing, setEditing] = useState<{ row: Workspace | null } | null>(null)
+  const [editing, setEditing] = useState<{ row: Workspace | null; kind: 'partnership' | 'warehouse' } | null>(null)
+  const editingWarehouse = (editing?.row?.kind ?? editing?.kind) === 'warehouse'
   const [pending, setPending] = useState<{ row: Workspace; action: GuardedAction } | null>(null)
 
   async function save(values: WorkspaceInput) {
     if (editing?.row) await workspacesApi.update({ id: editing.row.id, ...values })
-    else await workspacesApi.create(values)
+    else await workspacesApi.create({ ...values, kind: editing?.kind })
     toast.success(t(editing?.row ? 'toast.updated' : 'toast.created'))
     setEditing(null)
     await reload()
@@ -48,13 +49,14 @@ export default function WorkspacesPage() {
   return (
     <>
       <PageHeader title={t('workspaces.title')}>
-        <Button variant="primary" icon={Plus} onClick={() => setEditing({ row: null })}>{t('workspaces.add')}</Button>
+        <Button icon={Warehouse} onClick={() => setEditing({ row: null, kind: 'warehouse' })}>{t('workspaces.addWarehouse')}</Button>
+        <Button variant="primary" icon={Plus} onClick={() => setEditing({ row: null, kind: 'partnership' })}>{t('workspaces.add')}</Button>
       </PageHeader>
 
       <WorkspacesTable
         rows={workspaces}
         onSwitch={(row) => activate(row.id).catch(toast.fail)}
-        onEdit={(row) => setEditing({ row })}
+        onEdit={(row) => setEditing({ row, kind: row.kind === 'warehouse' ? 'warehouse' : 'partnership' })}
         onClose={(row) => setPending({ row, action: 'close' })}
         onReopen={(row) => setPending({ row, action: 'reopen' })}
         onDelete={(row) => setPending({ row, action: 'remove' })}
@@ -62,8 +64,11 @@ export default function WorkspacesPage() {
       <p className="mt-3 text-sm text-slate-500">{t('workspaces.closeNote')}</p>
 
       {editing && (
-        <Modal title={t(editing.row ? 'workspaces.edit' : 'workspaces.add')} onClose={() => setEditing(null)}>
-          <WorkspaceForm initial={editing.row} onSubmit={save} onCancel={() => setEditing(null)} />
+        <Modal
+          title={t(editingWarehouse ? (editing.row ? 'workspaces.editWarehouse' : 'workspaces.addWarehouse') : editing.row ? 'workspaces.edit' : 'workspaces.add')}
+          onClose={() => setEditing(null)}
+        >
+          <WorkspaceForm initial={editing.row} kind={editing.kind} onSubmit={save} onCancel={() => setEditing(null)} />
         </Modal>
       )}
       {pending && (
