@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Condition, Purchase, ReturnInput, ReturnKind, Sale } from '@shared/types'
+import type { Condition, Purchase, ReturnInput, ReturnKind, Sale, SaleWithLines } from '@shared/types'
 import { Field, FormActions, Input, NumberInput, Select } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { customerLabel } from '@/shared/utils/partyName'
@@ -41,14 +41,20 @@ export function ReturnForm({ sales, purchases, onSubmit, onCancel }: ReturnFormP
   const [invoiceId, setInvoiceId] = useState('')
   const [lines, setLines] = useState<ReturnLineState[]>([])
   const [meta, setMeta] = useState({ date: todayString(), reason: '' })
+  const [sale, setSale] = useState<SaleWithLines | null>(null)
+  // اللي اترد كاش: بيمشي مع فلوس العميل في الفاتورة لحد ما يتكتب بإيد
+  const [refund, setRefund] = useState<string | null>(null)
 
   const isSale = type === 'sale'
 
   async function pickInvoice(id: string) {
     setInvoiceId(id)
+    setSale(null)
+    setRefund(null)
     if (!id) return setLines([])
     if (isSale) {
       const sale = await salesApi.get({ id: Number(id) })
+      setSale(sale)
       setLines((sale?.items ?? []).map((l) => ({ item_id: l.item_id, name: bilingualName(l), condition: l.condition, original: l.quantity, quantity: '0', unit_price: String(l.selling_price), source: l.source_workspace_id, to_source: false })))
     } else {
       const purchase = await purchasesApi.get({ id: Number(id) })
@@ -64,6 +70,10 @@ export function ReturnForm({ sales, purchases, onSubmit, onCancel }: ReturnFormP
 
   const setLine = (index: number, patch: Partial<ReturnLineState>) => setLines(lines.map((l, i) => (i === index ? { ...l, ...patch } : l)))
   const total = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0), 0)
+  // فلوس العميل بعد المرتجع ده: اللي دفعه زيادة عن صافي الفاتورة
+  const owed = isSale && sale ? Math.max(0, Math.round((sale.paid - (sale.total - sale.returns_total - total)) * 100) / 100) : 0
+  const cashOnly = !!sale && sale.customer_id === null
+  const refundValue = cashOnly ? String(owed) : (refund ?? String(owed))
 
   const { submit, saving } = useSubmit(() =>
     onSubmit({
@@ -72,6 +82,7 @@ export function ReturnForm({ sales, purchases, onSubmit, onCancel }: ReturnFormP
       purchase_id: isSale ? null : Number(invoiceId),
       return_date: meta.date,
       reason: meta.reason,
+      ...(isSale && owed > 0 ? { refund: refundValue } : {}),
       items: lines
         .filter((l) => Number(l.quantity) > 0)
         .map((l) => ({ item_id: l.item_id, condition: l.condition, quantity: l.quantity, unit_price: l.unit_price, ...(l.to_source ? { to_source: true } : {}) }))
@@ -154,6 +165,15 @@ export function ReturnForm({ sales, purchases, onSubmit, onCancel }: ReturnFormP
         <Field label={t('common.date')}><Input type="date" value={meta.date} onChange={(e) => setMeta({ ...meta, date: e.target.value })} /></Field>
         <Field label={t('returns.reason')}><Input value={meta.reason} onChange={(e) => setMeta({ ...meta, reason: e.target.value })} /></Field>
       </div>
+
+      {owed > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 pb-1 pt-3">
+          <Field label={t('returns.refund')}>
+            <NumberInput max={owed} value={refundValue} readOnly={cashOnly} className={cashOnly ? 'bg-slate-50' : undefined} onChange={(e) => setRefund(e.target.value)} />
+            <small className="text-amber-900">{t(cashOnly ? 'returns.refundCashOnly' : 'returns.refundHint', { amount: formatMoney(owed, lang) })}</small>
+          </Field>
+        </div>
+      )}
 
       <p className="mt-4 text-end text-[17px]"><strong>{t('common.total')}: {formatMoney(total, lang)}</strong></p>
       <FormActions saving={saving} onCancel={onCancel} />

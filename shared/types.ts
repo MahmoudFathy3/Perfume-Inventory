@@ -233,6 +233,19 @@ export interface PartnerPayment {
   notes: string | null
   /** الدفعة على تحويل بيع (null = تسوية عادية) */
   transfer_id: number | null
+  /** تسوية بين الشريكين: الدفعتين المربوطتين ليهم نفس الرقم */
+  pair_id: number | null
+  /** في التسوية بين الشريكين: اسم الشريك التاني (اللي دفع أو استلم) */
+  counterparty_name: string | null
+}
+
+/** تسوية بين الشريكين: from دفع لـ to من جيبه */
+export interface PartnerTransferInput {
+  from_partner_id: number
+  to_partner_id: number
+  amount: NumLike
+  payment_date?: string
+  notes?: string
 }
 
 export interface PartnerPaymentInput {
@@ -248,8 +261,10 @@ export interface PartnerAccount {
   partner: WorkspacePartner
   /** رأس المال الداخل بالصافي (بتكلفته) */
   capital: number
-  /** قيمة اللي باعه للشراكة بالصافي (مستحق له) */
+  /** قيمة اللي باعه للشراكة من بضاعته بالصافي (مستحق له) */
   sold: number
+  /** فواتير شراء للشراكة دفعها من جيبه (بعد مرتجعاتها) — مستحق له */
+  paid_out: number
   profit_share: number
   /** اللي اتسوّى فعلًا (موجب = اتدفع له) */
   settled: number
@@ -421,6 +436,8 @@ export interface CustomerSummary extends Customer {
   total: number
   paid: number
   remaining: number
+  /** رصيد العميل عندك (دفع زيادة بعد مرتجعات) */
+  credit: number
 }
 
 // ---------- الفواتير ----------
@@ -439,6 +456,8 @@ export interface Purchase {
   /** الشريك اللي اشترى البضاعة (في الشراكة بس) */
   partner_id: number | null
   partner_name: string | null
+  /** 1 = الشريك دفعها من جيبه (الشراكة عليها المبلغ ليه) */
+  paid_by_partner: number
   purchase_date: string
   shipping_cost: number
   total: number
@@ -478,6 +497,12 @@ export interface Sale {
   returns_total: number
   /** اللي لسه على العميل = الإجمالي - المرتجعات - المدفوع (مش أقل من صفر) */
   remaining: number
+  /** رصيد العميل في الفاتورة: دفع زيادة عن صافيها بعد المرتجع (ولسه ما اتردّش ولا اتخصمش) */
+  credit: number
+  /** اترد للعميل كاش (مع مرتجعات) */
+  refunded: number
+  /** رصيده من الفاتورة دي اتخصم في فواتير تانية */
+  credit_used: number
 }
 
 export interface SaleLine extends InvoiceLine {
@@ -496,6 +521,20 @@ export interface SalePayment {
   amount: number
   payment_date: string
   notes: string | null
+  /** 1 = الدفعة من رصيد العميل (مش فلوس جديدة اتحصّلت) */
+  from_credit: number
+}
+
+/** فلوس طلعت من فاتورة للعميل: cash = اترد له كاش مع مرتجع، credit = رصيده اتخصم في فاتورة تانية */
+export interface SaleRefund {
+  id: number
+  sale_id: number
+  amount: number
+  refund_date: string
+  kind: 'cash' | 'credit'
+  return_id: number | null
+  /** الرصيد اتخصم في الفاتورة دي */
+  used_in_sale_id: number | null
 }
 
 export interface SaleWithLines extends Sale {
@@ -506,9 +545,12 @@ export interface SaleWithLines extends Sale {
 /** كشف حساب عميل: فواتيره ودفعاته */
 export interface CustomerStatement {
   customer: Customer
-  totals: { total: number; paid: number; returns: number; remaining: number }
+  /** paid = اللي دفعه فعلًا (قبل الردود)، refunded = اترد له كاش */
+  totals: { total: number; paid: number; returns: number; remaining: number; credit: number; refunded: number }
   sales: Sale[]
   payments: SalePayment[]
+  /** اللي اترد له أو اتخصم من رصيده */
+  refunds: SaleRefund[]
 }
 
 export interface ReturnRecord {
@@ -523,6 +565,11 @@ export interface ReturnRecord {
   /** 1 = العميل شريك (بيتكتب جنب اسمه "(الشريك)") */
   customer_is_partner: number
   supplier_name: string | null
+  /** مرتجع البيع: اللي اترد للعميل كاش معاه */
+  refunded: number
+  /** حالة فاتورة البيع دلوقتي: الباقي على العميل ورصيده فيها (null في مرتجع الشراء) */
+  sale_remaining: number | null
+  sale_credit: number | null
 }
 
 export interface ReturnLine extends InvoiceLine {
@@ -553,6 +600,8 @@ export interface PurchaseInput {
   supplier_name: string
   /** الشريك اللي اشترى: لازم في الشراكة، وبيتجاهل في المخزون الفعلي */
   partner_id?: number | null
+  /** الشريك دفعها من جيبه (مش من فلوس الشراكة) */
+  paid_by_partner?: boolean
   purchase_date?: string
   shipping_cost?: NumLike
   notes?: string
@@ -580,8 +629,10 @@ export interface SaleInput {
   price_type?: PriceType
   shipping_payer?: ShippingPayer
   shipping_cost?: NumLike
-  /** المدفوع وقت البيع (الافتراضي: الفاتورة كلها). بيتحدد وقت الإنشاء بس، والتحصيل بعد كده من العملاء. */
+  /** المدفوع وقت البيع (الافتراضي: الفاتورة كلها بعد الرصيد). بيتحدد وقت الإنشاء بس، والتحصيل بعد كده من العملاء. */
   paid?: NumLike
+  /** يتخصم من رصيد العميل الأول (لو ليه رصيد) */
+  use_credit?: boolean
   notes?: string
   items: SaleLineInput[]
 }
@@ -601,11 +652,15 @@ export interface ReturnInput {
   purchase_id?: number | null
   return_date?: string
   reason?: string
+  /** مرتجع بيع: اللي اترد للعميل كاش (الباقي من فلوسه بيفضل رصيد له). الافتراضي: مفيش */
+  refund?: NumLike
   items: ReturnLineInput[]
 }
 
 /** تحصيل مبلغ: على فاتورة معينة، أو على العميل (بيتوزع على أقدم فواتيره الأول) */
 export interface CollectInput {
+  /** خصم من رصيد العميل بدل فلوس جديدة (التحصيل على العميل بس) */
+  from_credit?: boolean
   sale_id?: number
   customer_id?: number
   amount: NumLike

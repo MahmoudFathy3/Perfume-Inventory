@@ -14,6 +14,7 @@ export const getPurchase = ({ id }: { id: number }) => repo.findById(id)
 const header = (c: CleanPurchase) => ({
   supplier_name: c.supplier_name,
   partner_id: c.partnerId,
+  paid_by_partner: c.paidByPartner ? 1 : 0,
   purchase_date: c.date,
   shipping_cost: c.shipping,
   total: c.total,

@@ -10,12 +10,18 @@ export function PaymentsTable({ rows, onDelete }: { rows: PartnerPayment[]; onDe
 
   const columns: Column<PartnerPayment>[] = [
     { key: 'date', header: t('common.date'), cell: (p) => formatDate(p.payment_date) },
-    { key: 'partner', header: t('partners.partner'), cell: (p) => p.partner_name },
-    { key: 'type', header: t('partners.paymentType'), cell: (p) => t(p.amount > 0 ? 'partners.toPartner' : 'partners.fromPartner') },
+    {
+      key: 'partner',
+      header: t('partners.partner'),
+      cell: (p) => (p.pair_id ? t('partners.transferRoute', { from: p.counterparty_name, to: p.partner_name }) : p.partner_name)
+    },
+    { key: 'type', header: t('partners.paymentType'), cell: (p) => t(p.pair_id ? 'partners.transferType' : p.amount > 0 ? 'partners.toPartner' : 'partners.fromPartner') },
     { key: 'amount', header: t('partners.amount'), cell: (p) => <strong>{formatMoney(Math.abs(p.amount), i18n.language)}</strong> },
     { key: 'notes', header: t('common.notes'), cell: (p) => [p.transfer_id ? t('transfers.linked', { id: p.transfer_id }) : null, p.notes].filter(Boolean).join(' · ') },
     { key: 'actions', header: '', cell: (p) => <RowActions><Button size="sm" variant="danger" icon={Trash2} onClick={() => onDelete(p)}>{t('common.delete')}</Button></RowActions> }
   ]
 
-  return <DataTable columns={columns} rows={rows} rowKey={(p) => p.id} />
+  // التسوية بين الشريكين متسجلة دفعتين: بنعرض اللي استلم بس (والحذف بيشيل الاتنين)
+  const shown = rows.filter((p) => !(p.pair_id && p.amount < 0))
+  return <DataTable columns={columns} rows={shown} rowKey={(p) => p.id} />
 }

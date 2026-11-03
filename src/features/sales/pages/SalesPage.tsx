@@ -9,6 +9,7 @@ import { fromSale } from '@/shared/components/invoice/invoice.types'
 import type { InvoiceDocData } from '@/shared/components/invoice/invoice.types'
 import { InvoicesTable } from '@/shared/components/invoice/InvoicesTable'
 import { InvoiceViewer } from '@/shared/components/invoice/InvoiceViewer'
+import { grossPaid } from '@/shared/components/invoice/SalePaidCell'
 import { SaleForm } from '@/shared/components/invoice/SaleForm'
 import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
@@ -69,7 +70,7 @@ export default function SalesPage() {
     {
       getName: (row) => `#${row.id}${row.customer_name ? ` — ${row.customer_name}` : ''}`,
       note: t('sales.deleteNote'),
-      getWarning: (row) => (row.paid > 0 ? t('sales.deletePaymentsWarning', { amount: formatMoney(row.paid, i18n.language) }) : null)
+      getWarning: (row) => (grossPaid(row) > 0 ? t('sales.deletePaymentsWarning', { amount: formatMoney(grossPaid(row), i18n.language) }) : null)
     }
   )
 

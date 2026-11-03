@@ -1,4 +1,5 @@
 import { queryAll } from '../../../database/connection'
+import { salePaid, saleRemaining } from '../../../lib/salePaid'
 import { searchClause } from '../../../lib/search'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, scoped } from '../../../lib/workspace'
 import type { ExportColumn, ExportParams } from '@shared/types'
@@ -34,9 +35,8 @@ export const salesSheet: SheetDef = {
               (SELECT COALESCE(SUM(quantity), 0) FROM sale_items WHERE sale_id = s.id) AS total_quantity,
               s.total - CASE WHEN s.shipping_payer = 'customer' THEN s.shipping_cost ELSE 0 END AS subtotal,
               s.shipping_cost, s.shipping_payer, s.total,
-              ROUND(COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2) AS paid,
-              MAX(0, ROUND(s.total - COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0)
-                                   - COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2)) AS remaining,
+              ROUND(${salePaid('s.id')}, 2) AS paid,
+              ${saleRemaining('s.id', 's.total')} AS remaining,
               (SELECT COALESCE(SUM(quantity * purchase_price), 0) FROM sale_items WHERE sale_id = s.id) AS cost_total,
               ${SALE_PROFIT} AS profit,
               (SELECT COALESCE(SUM(total), 0) FROM returns WHERE sale_id = s.id) AS returns_total, s.notes

@@ -1,4 +1,4 @@
-import type { DashboardRange, PartnerLedger, PartnerPaymentInput, PartnerSales } from '@shared/types'
+import type { DashboardRange, PartnerLedger, PartnerPaymentInput, PartnerSales, PartnerTransferInput } from '@shared/types'
 import { invoke } from '@/shared/api/ipc'
 
 export const partnersApi = {
@@ -6,5 +6,7 @@ export const partnersApi = {
   /** مبيعات كل شريك في الفترة */
   sales: (p: DashboardRange) => invoke<PartnerSales[]>('partners:sales', p),
   pay: (p: PartnerPaymentInput) => invoke<number>('partners:pay', p),
-  removePayment: (p: { id: number }) => invoke<void>('partners:remove-payment', p)
+  removePayment: (p: { id: number }) => invoke<void>('partners:remove-payment', p),
+  /** تسوية بين الشريكين (واحد دفع للتاني من جيبه) */
+  transfer: (p: PartnerTransferInput) => invoke<number>('partners:transfer', p)
 }
