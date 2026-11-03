@@ -19,13 +19,15 @@ export interface ReturnLineRow {
   quantity: number
   unit_price: number
   condition: Condition
+  /** 1 = رجع للمخزن الأصلي (القطع كانت جاية من مخزن تاني في الفاتورة) */
+  to_source?: number
 }
 
 type ListOptions = { search?: string }
 
 function listQuery(opts: ListOptions) {
   const { where, params } = scoped('r.workspace_id', searchClause(['r.reason', 'cu.name', 'p.supplier_name'], opts.search))
-  const sql = `SELECT r.*, cu.name AS customer_name, p.supplier_name FROM returns r
+  const sql = `SELECT r.*, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, p.supplier_name FROM returns r
      LEFT JOIN sales s ON s.id = r.sale_id
      LEFT JOIN customers cu ON cu.id = s.customer_id
      LEFT JOIN purchases p ON p.id = r.purchase_id
@@ -46,7 +48,7 @@ export function findPage(opts: ListOptions, page: PageParams): Page<ReturnRecord
 
 export function findById(id: number): ReturnWithLines | null {
   const record = queryOne<ReturnRecord>(
-    `SELECT r.*, cu.name AS customer_name, p.supplier_name FROM returns r
+    `SELECT r.*, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, p.supplier_name FROM returns r
      LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN customers cu ON cu.id = s.customer_id
      LEFT JOIN purchases p ON p.id = r.purchase_id WHERE r.id = ? AND ${inWorkspace('r.workspace_id')}`,
     [id]
@@ -69,9 +71,9 @@ export const insertHeader = (h: ReturnHeaderInput) =>
 
 export const insertLine = (l: ReturnLineRow) =>
   void execute(
-    `INSERT INTO return_items(return_id, item_id, quantity, unit_price, condition)
-     VALUES (@return_id, @item_id, @quantity, @unit_price, @condition)`,
-    { ...l }
+    `INSERT INTO return_items(return_id, item_id, quantity, unit_price, condition, to_source)
+     VALUES (@return_id, @item_id, @quantity, @unit_price, @condition, @to_source)`,
+    { ...l, to_source: l.to_source ?? 0 }
   )
 
 /** سطور المرتجع زي ما اتسجلت (بنستخدمها لعكس تأثيره على المخزن عند الحذف) */

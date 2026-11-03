@@ -2,16 +2,81 @@ import type { Workspace, WorkspaceInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError } from '../../lib/errors'
 import { normalizeArabic } from '../../lib/normalizeArabic'
-import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, setActiveWorkspaceId } from '../../lib/workspace'
+import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, setActiveWorkspaceId, withWorkspace } from '../../lib/workspace'
+import * as customers from '../customers/customers.repository'
+import * as settings from '../settings/settings.service'
 import * as repo from './workspaces.repository'
 
 const SHARE = 50 // الشراكة بين اتنين بالنص
 
-/** الاسم والشريكين بعد التنضيف. الاسم الفاضي = الواجهة بتعرض أسماء الشريكين. */
-function clean(input: WorkspaceInput): { name: string; partners: string[] } {
+/**
+ * بيربط كل شريك (غير صاحب المخزون) بعميل في المخزون الفعلي: عميل موجود بنفس الاسم أو عميل جديد.
+ * مبيعملش حاجة لو صاحب المخزون لسه متحددش (مش عارفين مين "التاني").
+ */
+export function linkPartnerCustomers(workspaceId?: number): void {
+  if (!getOwner()) return
+  const ids = workspaceId ? [workspaceId] : repo.findAll().filter((w) => w.kind === 'partnership').map((w) => w.id)
+  withWorkspace(PERSONAL_WORKSPACE_ID, () => {
+    for (const id of ids) {
+      for (const p of repo.findPartners(id)) {
+        if (p.is_owner || (p.customer_id && customers.findById(p.customer_id))) continue
+        repo.setPartnerCustomer(p.id, customers.findByName(p.name)?.id ?? customers.insert(p.name, null))
+      }
+    }
+  })
+}
+
+/** الشريك اتغيّر اسمه: عميله بياخد الاسم الجديد لو كان بنفس الاسم القديم ومفيش عميل تاني بالاسم الجديد */
+function renamePartnerCustomer(customerId: number | null, oldName: string, newName: string): void {
+  if (!customerId) return
+  withWorkspace(PERSONAL_WORKSPACE_ID, () => {
+    const customer = customers.findById(customerId)
+    if (!customer || normalizeArabic(customer.name) !== normalizeArabic(oldName) || customers.findByName(newName, customerId)) return
+    customers.update(customerId, newName, customer.phone)
+  })
+}
+
+/** صاحب المخزون الفعلي (null = لسه متحددش) */
+export const getOwner = (): string | null => settings.get({ key: 'owner_name' })?.trim() || null
+
+const isOwner = (name: string, owner = getOwner()) => !!owner && normalizeArabic(name) === normalizeArabic(owner)
+
+/**
+ * تحديد / تغيير صاحب المخزون الفعلي. لو اتغيّر الاسم، بيتغيّر في كل الشراكات اللي هو شريك فيها
+ * (نفس رقم الشريك، فالتحويلات والتسويات بتفضل مربوطة).
+ */
+export const setOwner = ({ name }: { name: string }): void =>
+  getDb().transaction(() => {
+    const next = String(name ?? '').trim()
+    if (!next) throw new AppError('NAME_REQUIRED')
+    const old = getOwner()
+    if (old && normalizeArabic(old) !== normalizeArabic(next)) {
+      for (const w of repo.findAll()) {
+        const partners = repo.findPartners(w.id)
+        const mine = partners.find((p) => isOwner(p.name, old))
+        if (!mine) continue
+        if (partners.some((p) => p.id !== mine.id && normalizeArabic(p.name) === normalizeArabic(next))) throw new AppError('DUPLICATE_PARTNERS')
+        repo.renamePartner(mine.id, next)
+      }
+    } else if (old) {
+      // نفس الاسم بكتابة مختلفة (همزة مثلًا): بنوحّد الكتابة في الشراكات
+      for (const w of repo.findAll()) repo.findPartners(w.id).filter((p) => isOwner(p.name, old)).forEach((p) => repo.renamePartner(p.id, next))
+    }
+    settings.set({ key: 'owner_name', value: next })
+    linkPartnerCustomers()
+  })()
+
+/**
+ * الاسم والشريكين بعد التنضيف. الاسم الفاضي = الواجهة بتعرض أسماء الشريكين.
+ * requireOwner: صاحب المخزون لازم يفضل شريك (الشراكات الجديدة، واللي هو أصلًا فيها).
+ */
+function clean(input: WorkspaceInput, requireOwner = true): { name: string; partners: string[] } {
   const partners = (input.partners ?? []).map((p) => String(p ?? '').trim())
   if (partners.length !== 2 || partners.some((p) => !p)) throw new AppError('PARTNERS_REQUIRED')
   if (normalizeArabic(partners[0]) === normalizeArabic(partners[1])) throw new AppError('DUPLICATE_PARTNERS')
+  // صاحب المخزون الفعلي لازم يكون واحد من الشريكين (لو متحدد)
+  const owner = getOwner()
+  if (requireOwner && owner && !partners.some((p) => isOwner(p, owner))) throw new AppError('OWNER_NOT_PARTNER')
   return { name: String(input.name ?? '').trim(), partners }
 }
 
@@ -54,17 +119,23 @@ export const createWorkspace = (input: WorkspaceInput): number =>
     assertUniqueLabel(name, partners)
     const id = repo.insert('partnership', name)
     for (const p of partners) repo.insertPartner(id, p, SHARE)
+    linkPartnerCustomers(id)
     return id
   })()
 
 export const updateWorkspace = ({ id, ...input }: WorkspaceInput & { id: number }): void =>
   getDb().transaction(() => {
     if (editable(id).kind === 'warehouse') return repo.rename(id, warehouseName(input, id))
-    const { name, partners } = clean(input)
+    // شراكة قديمة صاحب المخزون مش فيها بتتعدّل عادي
+    const { name, partners } = clean(input, repo.findPartners(id).some((p) => p.is_owner))
     assertUniqueLabel(name, partners, id)
     repo.rename(id, name)
     // بنغيّر الأسماء في مكانها علشان أرقام الشريكين (المرتبطة بالتحويلات والتسويات) تفضل ثابتة
-    repo.findPartners(id).forEach((existing, i) => repo.renamePartner(existing.id, partners[i]))
+    repo.findPartners(id).forEach((existing, i) => {
+      repo.renamePartner(existing.id, partners[i])
+      renamePartnerCustomer(existing.customer_id, existing.name, partners[i])
+    })
+    linkPartnerCustomers(id)
   })()
 
 /** التبديل للمساحة اللي هنشتغل عليها (لازم تكون مفتوحة) */

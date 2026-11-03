@@ -4,6 +4,9 @@ import { execute, queryAll } from '../../database/connection'
 export const insert = (saleId: number, amount: number, date: string, notes: string | null) =>
   execute('INSERT INTO sale_payments(sale_id, amount, payment_date, notes) VALUES (?, ?, ?, ?)', [saleId, amount, date, notes])
 
+/** رقم الفاتورة اللي الدفعة عليها */
+export const saleIdOf = (id: number) => queryAll<{ sale_id: number }>('SELECT sale_id FROM sale_payments WHERE id = ?', [id])[0]?.sale_id ?? null
+
 export const remove = (id: number) => void execute('DELETE FROM sale_payments WHERE id = ?', [id])
 export const removeBySale = (saleId: number) => void execute('DELETE FROM sale_payments WHERE sale_id = ?', [saleId])
 

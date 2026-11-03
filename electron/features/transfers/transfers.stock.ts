@@ -29,19 +29,23 @@ export interface OutgoingLine {
  * وأي تحويل تاني بتكلفة المصدر.
  */
 function defaultPrice(c: CleanTransfer, stock: { purchase_price: number; selling_price: number }): number {
-  const retail = c.kind === 'sale' && c.from === PERSONAL_WORKSPACE_ID && stock.selling_price > 0
+  if (c.recipient === 'partnership') return stock.purchase_price // للشراكة بالنص: دايمًا بالتكلفة
+  const retail = (c.kind === 'sale' || c.recipient === 'partner') && c.from === PERSONAL_WORKSPACE_ID && stock.selling_price > 0
   return retail ? stock.selling_price : stock.purchase_price
 }
 
-/** بيخصم القطع من المخزن المصدر بتكلفتها (متوسط تكلفة المصدر) ويرجّع بياناتها للوجهة */
-export function takeOut(c: CleanTransfer): OutgoingLine[] {
+/**
+ * بيخصم القطع من المخزن المصدر بتكلفتها (متوسط تكلفة المصدر) ويرجّع بياناتها للوجهة.
+ * move = false: بيوصف القطع بس من غير ما يخصمها (لما فاتورة بيع هي اللي بتخرّجها من المصدر).
+ */
+export function takeOut(c: CleanTransfer, move = true): OutgoingLine[] {
   return withWorkspace(c.from, () =>
     c.lines.map((l) => {
       const item = items.findById(l.item_id)
       if (!item || item.deleted_at) throw new AppError('ITEM_NOT_FOUND')
       const stock = itemStock.getStock(l.item_id, l.condition)
       if (!stock || stock.quantity < l.quantity) throw new AppError('OUT_OF_STOCK')
-      itemStock.changeStock(l.item_id, l.condition, -l.quantity)
+      if (move) itemStock.changeStock(l.item_id, l.condition, -l.quantity)
       return {
         from_item_id: l.item_id,
         condition: l.condition,

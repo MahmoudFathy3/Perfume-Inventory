@@ -3,7 +3,7 @@ import { usePagedQuery } from '@/shared/hooks/usePagedQuery'
 import { purchasesApi } from '../api/purchases.api'
 
 /** صفحة purchases (الجدول): الـ pagination من الـ backend */
-export function usePurchases(search = '') {
+export function usePurchases(search = '', partnerId?: number) {
   const q = useDebounce(search)
-  return usePagedQuery((page) => purchasesApi.page({ search: q, ...page }), [q])
+  return usePagedQuery((page) => purchasesApi.page({ search: q, partnerId, ...page }), [q, partnerId])
 }

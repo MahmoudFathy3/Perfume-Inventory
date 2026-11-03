@@ -2,9 +2,10 @@ import { Plus, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Workspace, WorkspaceInput } from '@shared/types'
-import { Button, Modal, PageHeader } from '@/shared/components/ui'
+import { Alert, Button, Modal, PageHeader } from '@/shared/components/ui'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { workspacesApi } from '../api/workspaces.api'
+import { OwnerForm } from '../components/OwnerForm'
 import { PasswordConfirmModal } from '../components/PasswordConfirmModal'
 import { WorkspaceForm } from '../components/WorkspaceForm'
 import { WorkspacesTable } from '../components/WorkspacesTable'
@@ -23,7 +24,8 @@ type GuardedAction = keyof typeof GUARDED
 export default function WorkspacesPage() {
   const { t } = useTranslation()
   const toast = useToast()
-  const { workspaces, activate, reload, label } = useWorkspaces()
+  const { workspaces, owner, activate, reload, label } = useWorkspaces()
+  const [editingOwner, setEditingOwner] = useState(false)
   const [editing, setEditing] = useState<{ row: Workspace | null; kind: 'partnership' | 'warehouse' } | null>(null)
   const editingWarehouse = (editing?.row?.kind ?? editing?.kind) === 'warehouse'
   const [pending, setPending] = useState<{ row: Workspace; action: GuardedAction } | null>(null)
@@ -53,8 +55,18 @@ export default function WorkspacesPage() {
         <Button variant="primary" icon={Plus} onClick={() => setEditing({ row: null, kind: 'partnership' })}>{t('workspaces.add')}</Button>
       </PageHeader>
 
+      {!owner && (
+        <Alert tone="warning">
+          <span className="flex flex-wrap items-center justify-between gap-3">
+            {t('workspaces.ownerMissing')}
+            <Button size="sm" variant="primary" onClick={() => setEditingOwner(true)}>{t('workspaces.setOwner')}</Button>
+          </span>
+        </Alert>
+      )}
+
       <WorkspacesTable
         rows={workspaces}
+        onEditOwner={() => setEditingOwner(true)}
         onSwitch={(row) => activate(row.id).catch(toast.fail)}
         onEdit={(row) => setEditing({ row, kind: row.kind === 'warehouse' ? 'warehouse' : 'partnership' })}
         onClose={(row) => setPending({ row, action: 'close' })}
@@ -69,6 +81,11 @@ export default function WorkspacesPage() {
           onClose={() => setEditing(null)}
         >
           <WorkspaceForm initial={editing.row} kind={editing.kind} onSubmit={save} onCancel={() => setEditing(null)} />
+        </Modal>
+      )}
+      {editingOwner && (
+        <Modal title={t(owner ? 'workspaces.editOwner' : 'workspaces.setOwner')} onClose={() => setEditingOwner(false)}>
+          <OwnerForm onSaved={() => setEditingOwner(false)} onCancel={() => setEditingOwner(false)} />
         </Modal>
       )}
       {pending && (

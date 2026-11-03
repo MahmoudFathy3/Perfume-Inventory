@@ -1,4 +1,4 @@
-import { addToAverage } from '../../lib/cost'
+import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError } from '../../lib/errors'
 import * as items from '../items/items.repository'
 import * as itemStock from '../items/stock.repository'
@@ -19,14 +19,23 @@ export function sellLines(saleId: number, c: CleanSale, allowArchived: boolean):
     const defaultPrice = c.priceType === 'wholesale' && stock.wholesale_price > 0 ? stock.wholesale_price : stock.selling_price
     const selling_price = l.selling_price ?? defaultPrice
 
+    // السطر الجاي من مخزن تاني: تكلفته = سعر التحويل بالظبط (مش متوسط المخزن)، والمتوسط بيتظبط على كده
+    const cost = l.cost ?? stock.purchase_price
+    if (l.cost !== undefined) {
+      itemStock.setPrices(l.item_id, l.condition, { purchase_price: removeFromAverage(stock.quantity, stock.purchase_price, l.quantity, l.cost) })
+    }
+
     repo.insertLine({
       sale_id: saleId,
       item_id: l.item_id,
       category_id: meta.category_id,
       condition: l.condition,
       quantity: l.quantity,
-      purchase_price: stock.purchase_price, // التكلفة وقت البيع (شاملة الشحن)
-      selling_price
+      purchase_price: cost, // التكلفة وقت البيع (شاملة الشحن)
+      selling_price,
+      source_workspace_id: l.source,
+      source_item_id: l.source_item_id ?? null,
+      transfer_price: l.cost ?? null
     })
     itemStock.changeStock(l.item_id, l.condition, -l.quantity)
     subtotal += l.quantity * selling_price

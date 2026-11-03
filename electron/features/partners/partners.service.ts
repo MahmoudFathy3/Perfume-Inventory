@@ -1,8 +1,11 @@
-import type { DashboardRange, PartnerLedger, PartnerPaymentInput, PartnerSales } from '@shared/types'
+import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales } from '@shared/types'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
-import { activeWorkspaceId, PERSONAL_WORKSPACE_ID } from '../../lib/workspace'
+import { getDb } from '../../database/connection'
+import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
+import * as customers from '../customers/customers.repository'
 import { lifetimeProfit } from '../dashboard/dashboard.service'
 import * as workspaces from '../workspaces/workspaces.repository'
+import { linkPartnerCustomers } from '../workspaces/workspaces.service'
 import * as repo from './partners.repository'
 
 /** الشراكة اللي شغالين عليها (حسابات الشركاء ملهاش معنى في المخزون الفعلي) */
@@ -16,9 +19,13 @@ function currentPartnership(): number {
  * كشف حساب الشركاء في الشراكة النشطة.
  * المستحق للشريك = نصيبه من الربح + اللي باعه للشراكة - اللي اتسوّى.
  * (رأس المال بيتعرض لوحده علشان بيرجع للشريك في التصفية مش مع الأرباح.)
+ * ومع كل شريك حسابه كعميل في المخزون الفعلي (اللي أخده من المخزون الفعلي لنفسه).
  */
 export function ledger(): PartnerLedger {
   const ws = currentPartnership()
+  // الشراكات القديمة (قبل الربط): الشريك بيتربط بعميله أول ما الحسابات تتفتح
+  getDb().transaction(() => linkPartnerCustomers(ws))()
+  const storeAccounts = new Map(withWorkspace(PERSONAL_WORKSPACE_ID, () => customers.findAll()).map((c) => [c.id, c]))
   const profit = round2(lifetimeProfit())
   const totals = new Map(repo.totals(ws).map((t) => [t.partner_id, t]))
 
@@ -31,10 +38,16 @@ export function ledger(): PartnerLedger {
       sold: round2(t.sold),
       profit_share,
       settled: round2(t.settled),
-      balance: round2(profit_share + t.sold - t.settled)
+      balance: round2(profit_share + t.sold - t.settled),
+      store_account: storeAccountOf(partner.customer_id, storeAccounts)
     }
   })
   return { profit, accounts, payments: repo.findPayments(ws) }
+}
+
+function storeAccountOf(customerId: number | null, accounts: Map<number, CustomerSummary>): PartnerAccount['store_account'] {
+  const c = customerId ? accounts.get(customerId) : undefined
+  return c ? { customer_id: c.id, sales_count: c.sales_count, total: c.total, paid: c.paid, remaining: c.remaining } : null
 }
 
 /** تسوية: الشراكة بتدفع للشريك (to_partner) أو الشريك بيدفع للشراكة (from_partner) */
@@ -52,7 +65,10 @@ export function addPayment(input: PartnerPaymentInput): number {
   })
 }
 
-export const removePayment = ({ id }: { id: number }): void => repo.removePayment(id, currentPartnership())
+export function removePayment({ id }: { id: number }): void {
+  if (repo.isSalePayment(id)) throw new AppError('PAYMENT_FROM_SALE') // بتتشال لوحدها لو دفع الفاتورة اتغيّر
+  repo.removePayment(id, currentPartnership())
+}
 
 /**
  * مبيعات كل شريك في الشراكة النشطة (من / إلى اختياري). الصافي = الإجمالي - المرتجع.

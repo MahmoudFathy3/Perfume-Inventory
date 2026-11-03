@@ -1,7 +1,8 @@
+import clsx from 'clsx'
 import { Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Condition, Item, TransferDetails, TransferInput, TransferKind, Workspace } from '@shared/types'
+import type { Condition, Item, TransferDetails, TransferInput, TransferKind, TransferRecipient, Workspace } from '@shared/types'
 import { ProductSelect } from '@/shared/components/data/ProductSelect'
 import { Alert, Button, Field, FormActions, Input, NumberInput, Segmented, Select } from '@/shared/components/ui'
 import { CONDITIONS } from '@/shared/constants'
@@ -12,6 +13,8 @@ import { transfersApi } from '../api/transfers.api'
 
 const PERSONAL_ID = 1
 const KINDS: TransferKind[] = ['capital', 'sale', 'half']
+/** لما التحويل لصاحب المخزون: رأس مال أو بيع بسعر بس */
+const OWNER_KINDS: TransferKind[] = ['capital', 'sale']
 
 interface Line {
   item_id: number | ''
@@ -26,7 +29,7 @@ const linesOf = (transfer: TransferDetails): Line[] =>
     item_id: l.from_item_id,
     condition: l.condition,
     quantity: String(l.quantity),
-    price: transfer.kind === 'sale' ? String(l.unit_price) : ''
+    price: transfer.kind === 'sale' || transfer.recipient === 'partner' ? String(l.unit_price) : ''
   }))
 
 interface TransferFormProps {
@@ -42,7 +45,8 @@ interface TransferFormProps {
 /**
  * تحويل بين المخزون الفعلي وشراكة. بنقف في مخزن (النشط) ونختار الاتجاه:
  * "من هنا" أو "إلى هنا"، ونوع التحويل (رأس مال / بيع بسعر / بالنص) وقت التحويل نفسه.
- * مع initial بيبقى فورم تعديل بنفس بيانات التحويل.
+ * من المخزون الفعلي للشراكة بنسأل الأول "لمين؟": صاحب المخزون (رأس مال / بيع بسعر)، أو الشريك التاني (اشتراها)،
+ * أو الشراكة بالنص (بالتكلفة). مع initial بيبقى فورم تعديل بنفس بيانات التحويل.
  */
 export function TransferForm({ active, workspaces, nameOf, initial = null, onSubmit, onCancel }: TransferFormProps) {
   const { t, i18n } = useTranslation()
@@ -58,6 +62,8 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
   const [partnerId, setPartnerId] = useState<number>(initial?.partner_id ?? 0)
   const [header, setHeader] = useState({ date: initial?.transfer_date ?? todayString(), notes: initial?.notes ?? '' })
   const [lines, setLines] = useState<Line[]>(initial ? linesOf(initial) : [emptyLine()])
+  const [recipient, setRecipient] = useState<TransferRecipient>(initial?.recipient ?? 'partnership')
+  const [buyerId, setBuyerId] = useState<number>(initial?.recipient === 'partner' ? (initial.partner_id ?? 0) : 0)
 
   // الطرف التاني: لو واقفين في المخزون الفعلي بنختار الشراكة، ولو واقفين في شراكة فالطرف التاني هو المخزون الفعلي
   const peerId = activeIsPersonal ? otherId : PERSONAL_ID
@@ -66,15 +72,62 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
   const partnership = activeIsPersonal ? partnerships.find((w) => w.id === otherId) : active
   const intoPartnership = toId !== PERSONAL_ID
   const partners = partnership?.partners ?? []
-  const effectivePartner = partners.some((p) => p.id === partnerId) ? partnerId : (partners[0]?.id ?? 0)
+  // الافتراضي صاحب المخزون الفعلي (هو اللي بيدّي رأس المال أو بيبيع للشراكة أو بيشتري منها في الغالب)
+  const defaultPartner = partners.find((p) => p.is_owner) ?? partners[0]
+  const effectivePartner = partners.some((p) => p.id === partnerId) ? partnerId : (defaultPartner?.id ?? 0)
+
+  // "لمين؟": من المخزون الفعلي لشراكة صاحب المخزون شريك فيها (التحويلات القديمة من غير "لمين" بتتعدّل بالطريقة القديمة)
+  const owner = partners.find((p) => p.is_owner)
+  const others = partners.filter((p) => !p.is_owner)
+  const askRecipient = fromId === PERSONAL_ID && intoPartnership && !!owner && !(initial && !initial.recipient)
+  const buyer = others.find((p) => p.id === buyerId) ?? others[0]
+  const effectiveKind: TransferKind = !askRecipient ? kind : recipient === 'partner' ? 'capital' : recipient === 'partnership' ? 'sale' : OWNER_KINDS.includes(kind) ? kind : 'capital'
+  // السطور ليها سعر: بيع بسعر، أو الشريك بيشتري. "للشراكة" دايمًا بالتكلفة.
+  const priced = askRecipient ? (recipient === 'owner' && effectiveKind === 'sale') || recipient === 'partner' : kind === 'sale'
 
   const source = useQuery(() => (partnership ? transfersApi.items({ workspace_id: fromId }) : Promise.resolve([] as Item[])), [fromId, !!partnership])
   const items = source.data ?? []
 
+  /** سعر القطعة في البيع: من المخزون الفعلي للشراكة بسعر البيع القطاعي (ولو مش متحدد بالتكلفة)، وغير كده بالتكلفة (زي الـ backend) */
+  const priceOf = (itemId: Line['item_id'], condition: Condition) => {
+    const item = items.find((i) => i.id === itemId)
+    if (!item) return 0
+    const retail = item[`${condition}_selling_price`]
+    return fromId === PERSONAL_ID && retail > 0 ? retail : item[`${condition}_purchase_price`]
+  }
+  const priceText = (itemId: Line['item_id'], condition: Condition) => (itemId ? String(priceOf(itemId, condition)) : '')
+
   const reset = () => setLines([emptyLine()])
   const changeDirection = (value: 'out' | 'in') => { setDirection(value); reset() }
   const changeOther = (id: number) => { setOtherId(id); reset() }
-  const patch = (index: number, change: Partial<Line>) => setLines(lines.map((l, i) => (i === index ? { ...l, ...change } : l)))
+  // لما نختار "بيع بسعر": السطور اللي سعرها فاضي بتتملى بسعر القطعة
+  const changeKind = (value: TransferKind) => {
+    setKind(value)
+    if (value === 'sale') fillPrices()
+  }
+  const fillPrices = () => setLines(lines.map((l) => (l.price === '' ? { ...l, price: priceText(l.item_id, l.condition) } : l)))
+  // "لمين" بالقيمة: owner | partnership | partner:<id>
+  const recipientValue = recipient === 'partner' ? `partner:${buyer?.id ?? 0}` : recipient
+  const changeRecipient = (value: string) => {
+    if (value.startsWith('partner:')) {
+      setRecipient('partner')
+      setBuyerId(Number(value.slice(8)))
+      fillPrices()
+    } else {
+      setRecipient(value as TransferRecipient)
+      if (value === 'owner' && kind === 'sale') fillPrices()
+    }
+  }
+  const patch = (index: number, change: Partial<Line>) =>
+    setLines(
+      lines.map((l, i) => {
+        if (i !== index) return l
+        const next = { ...l, ...change }
+        // منتج أو حالة جديدة = سعر القطعة بتاعها (وتقدر تغيّره بعد كده)
+        const productChanged = next.item_id !== l.item_id || next.condition !== l.condition
+        return priced && productChanged ? { ...next, price: priceText(next.item_id, next.condition) } : next
+      })
+    )
 
   // في التعديل: القطع اللي في التحويل نفسه هترجع للمصدر قبل الحفظ، فبتتحسب ضمن المتاح
   const reserved = (l: Line) =>
@@ -85,26 +138,37 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
   const details = lines.map((l) => {
     const item = items.find((i) => i.id === l.item_id)
     const cost = item ? item[`${l.condition}_purchase_price`] : 0
-    // البيع من المخزون الفعلي للشراكة بسعر البيع القطاعي افتراضيًا (زي الـ backend)
-    const retail = item ? item[`${l.condition}_selling_price`] : 0
-    const defaultPrice = kind === 'sale' && fromId === PERSONAL_ID && retail > 0 ? retail : cost
-    const price = kind === 'sale' && l.price !== '' ? Number(l.price) || 0 : defaultPrice
-    return { item, available: item ? item[`${l.condition}_quantity`] + reserved(l) : 0, cost, quantity: Number(l.quantity) || 0, price, defaultPrice }
+    const defaultPrice = priced ? priceOf(l.item_id, l.condition) : cost
+    const price = priced && l.price !== '' ? Number(l.price) || 0 : defaultPrice
+    // أزرار السعر السريعة: القطاعي والجملة (لو متحددين) والتكلفة
+    const presets = item
+      ? ([
+          ['priceRetail', item[`${l.condition}_selling_price`]],
+          ['priceWholesale', item[`${l.condition}_wholesale_price`]],
+          ['priceCost', cost]
+        ] as const).filter(([key, value]) => value > 0 || key === 'priceCost')
+      : []
+    const quantity = Number(l.quantity) || 0
+    return { item, available: item ? item[`${l.condition}_quantity`] + reserved(l) : 0, cost, quantity, price, defaultPrice, presets, profit: quantity * (price - cost) }
   })
   const totalCost = details.reduce((sum, d) => sum + d.quantity * d.cost, 0)
   const totalPrice = details.reduce((sum, d) => sum + d.quantity * d.price, 0)
+  const totalProfit = totalPrice - totalCost
+  const money = (v: number) => formatMoney(v, i18n.language)
+  const profitTone = (v: number) => (v > 0 ? 'text-green-700' : v < 0 ? 'text-rose-600' : 'text-slate-600')
 
   const { submit, saving } = useSubmit(() =>
     onSubmit({
       from_workspace_id: fromId,
       to_workspace_id: toId,
-      kind,
-      partner_id: kind === 'half' ? null : effectivePartner,
+      kind: effectiveKind,
+      partner_id: askRecipient ? (recipient === 'partner' ? (buyer?.id ?? null) : (owner?.id ?? null)) : kind === 'half' ? null : effectivePartner,
+      recipient: askRecipient ? recipient : null,
       transfer_date: header.date,
       notes: header.notes,
       items: lines
         .filter((l) => l.item_id)
-        .map((l) => ({ item_id: Number(l.item_id), condition: l.condition, quantity: l.quantity, unit_price: kind === 'sale' ? l.price : null }))
+        .map((l) => ({ item_id: Number(l.item_id), condition: l.condition, quantity: l.quantity, unit_price: priced ? l.price : null }))
     })
   )
 
@@ -141,17 +205,41 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
         )}
       </div>
 
-      <div className="mb-3.5 flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold text-slate-500">{t('transfers.kind')}</span>
-        <Segmented value={kind} onChange={setKind} options={KINDS.map((k) => ({ value: k, label: t(`transfers.kinds.${k}`) }))} />
-        <small className="text-slate-500">{t(`transfers.kindHint.${kind}`)}</small>
-      </div>
+      {askRecipient ? (
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-slate-500">{t('transfers.recipient')}</span>
+          <Segmented
+            value={recipientValue}
+            onChange={changeRecipient}
+            options={[
+              { value: 'owner', label: owner!.name },
+              ...others.map((p) => ({ value: `partner:${p.id}`, label: p.name })),
+              { value: 'partnership', label: t('transfers.recipientPartnership') }
+            ]}
+          />
+          <small className="text-slate-500">
+            {t(`transfers.recipientHint.${recipient}`, { owner: owner!.name, partner: buyer?.name ?? '' })}
+          </small>
+          {recipient === 'owner' && (
+            <div className="mt-1.5 flex flex-col gap-1.5">
+              <Segmented value={effectiveKind} onChange={changeKind} options={OWNER_KINDS.map((k) => ({ value: k, label: t(`transfers.kinds.${k}`) }))} />
+              <small className="text-slate-500">{t(`transfers.kindHint.${effectiveKind}`)}</small>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-slate-500">{t('transfers.kind')}</span>
+          <Segmented value={kind} onChange={changeKind} options={KINDS.map((k) => ({ value: k, label: t(`transfers.kinds.${k}`) }))} />
+          <small className="text-slate-500">{t(`transfers.kindHint.${kind}`)}</small>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-x-4">
-        {kind !== 'half' && (
+        {!askRecipient && kind !== 'half' && (
           <Field label={partnerLabel}>
             <Select value={effectivePartner} onChange={(e) => setPartnerId(Number(e.target.value))}>
-              {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {partners.map((p) => <option key={p.id} value={p.id}>{p.is_owner ? `${p.name} (${t('workspaces.ownerTag')})` : p.name}</option>)}
             </Select>
           </Field>
         )}
@@ -160,6 +248,10 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
         </Field>
       </div>
 
+      {/* مين بيبيع / بينقل لمين: علشان الاتجاه يبقى واضح قبل اختيار المنتجات */}
+      <p className="mb-2.5 rounded-xl bg-primary-50 px-3.5 py-2 text-sm font-semibold text-primary-800">
+        {t(effectiveKind === 'sale' ? 'transfers.saleRoute' : 'transfers.moveRoute', { from: nameOf(fromId), to: nameOf(toId) })}
+      </p>
       <div className="mb-2 flex flex-col gap-2">
         {lines.map((line, i) => (
           <div key={i} className="rounded-xl border border-slate-200 p-3">
@@ -175,7 +267,7 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
               <Field label={t('common.quantity')} className="!mb-0">
                 <NumberInput step={1} value={line.quantity} onChange={(e) => patch(i, { quantity: e.target.value })} />
               </Field>
-              {kind === 'sale' ? (
+              {priced ? (
                 <Field label={t('transfers.unitPrice')} className="!mb-0">
                   <NumberInput value={line.price} placeholder={String(details[i].defaultPrice)} onChange={(e) => patch(i, { price: e.target.value })} />
                 </Field>
@@ -183,9 +275,28 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
               <Button variant="ghost" icon={Trash2} disabled={lines.length === 1} aria-label={t('common.removeLine')} onClick={() => setLines(lines.filter((_, k) => k !== i))} />
             </div>
             {details[i].item && (
-              <small className="mt-1.5 block text-slate-500">
-                {t('transfers.available')}: {details[i].available} · {t('transfers.unitCost')}: {formatMoney(details[i].cost, i18n.language)}
-              </small>
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[13px] text-slate-500">
+                <span>
+                  {t('transfers.available')}: {details[i].available} · {t('transfers.unitCost')}: {money(details[i].cost)}
+                  {priced && (
+                    <> · {t('transfers.profitOf', { name: nameOf(fromId) })}: <strong className={profitTone(details[i].profit)}>{money(details[i].profit)}</strong></>
+                  )}
+                </span>
+                {priced && (
+                  <span className="flex flex-wrap gap-1.5">
+                    {details[i].presets.map(([key, value]) => (
+                      <Button
+                        key={key}
+                        size="sm"
+                        className={clsx('rounded-full !px-3 !py-1 text-xs', Number(line.price) === value && '!border-primary-600 !bg-primary-600 font-semibold !text-white')}
+                        onClick={() => patch(i, { price: String(value) })}
+                      >
+                        {t(`transfers.${key}`)}: {money(value)}
+                      </Button>
+                    ))}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         ))}
@@ -196,8 +307,13 @@ export function TransferForm({ active, workspaces, nameOf, initial = null, onSub
         <Input value={header.notes} onChange={(e) => setHeader({ ...header, notes: e.target.value })} />
       </Field>
       <p className="text-sm text-slate-600">
-        {t('transfers.totalCost')}: <strong>{formatMoney(totalCost, i18n.language)}</strong>
-        {kind === 'sale' && <> · {t('transfers.totalPrice')}: <strong>{formatMoney(totalPrice, i18n.language)}</strong></>}
+        {t('transfers.totalCost')}: <strong>{money(totalCost)}</strong>
+        {priced && (
+          <>
+            {' · '}{t('transfers.totalPrice')}: <strong>{money(totalPrice)}</strong>
+            {' · '}{t('transfers.profitOf', { name: nameOf(fromId) })}: <strong className={profitTone(totalProfit)}>{money(totalProfit)}</strong>
+          </>
+        )}
       </p>
       <FormActions saving={saving} onCancel={onCancel} />
     </form>

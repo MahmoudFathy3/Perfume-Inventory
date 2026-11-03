@@ -6,12 +6,14 @@ import { receiveLines, releaseLines } from './purchases.stock'
 import { cleanPurchase } from './purchases.validation'
 import type { CleanPurchase } from './purchases.validation'
 
-export const listPurchases = (p: { search?: string }) => repo.findAll(p)
-export const pagePurchases = (p: { search?: string } & PageParams) => repo.findPage(p, p)
+type PurchasesFilter = { search?: string; partnerId?: number }
+export const listPurchases = (p: PurchasesFilter) => repo.findAll(p)
+export const pagePurchases = (p: PurchasesFilter & PageParams) => repo.findPage(p, p)
 export const getPurchase = ({ id }: { id: number }) => repo.findById(id)
 
 const header = (c: CleanPurchase) => ({
   supplier_name: c.supplier_name,
+  partner_id: c.partnerId,
   purchase_date: c.date,
   shipping_cost: c.shipping,
   total: c.total,

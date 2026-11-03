@@ -1,4 +1,6 @@
 export { customersApi } from './api/customers.api'
+export { CollectDialog } from './components/CollectDialog'
+export type { CollectValues } from './components/CollectDialog'
 export { useCustomers, useCustomersPage } from './hooks/useCustomers'
 export { default as CustomersPage } from './pages/CustomersPage'
 export { default as CustomerDetailsPage } from './pages/CustomerDetailsPage'

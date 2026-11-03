@@ -42,6 +42,10 @@ export interface WorkspacePartner {
   id: number
   name: string
   share_percent: number
+  /** هل هو صاحب المخزون الفعلي؟ (بالاسم، من غير تفرقة همزة/تاء مربوطة) */
+  is_owner: boolean
+  /** عميله في المخزون الفعلي (اللي بياخده لنفسه بيتسجل فاتورة عليه). null لصاحب المخزون */
+  customer_id: number | null
 }
 
 export interface Workspace {
@@ -93,6 +97,13 @@ export interface AuthStatus {
 /** رأس مال من شريك | بيع بسعر محدد | نقل بالنص من غير حسابات */
 export type TransferKind = 'capital' | 'sale' | 'half'
 
+/**
+ * التحويل من المخزون الفعلي للشراكة لمين:
+ * owner = صاحب المخزون (رأس مال أو بيع بسعر) | partner = الشريك التاني اشترى القطع من صاحب المخزون
+ * (رأس مال له + فاتورة عليه في المخزون الفعلي) | partnership = منتجات الشراكة بالنص (الشراكة عليها التكلفة لصاحب المخزون)
+ */
+export type TransferRecipient = 'owner' | 'partner' | 'partnership'
+
 export interface TransferLineInput {
   item_id: number
   condition: Condition
@@ -107,6 +118,8 @@ export interface TransferInput {
   kind: TransferKind
   /** صاحب رأس المال أو البيع (مش مطلوب في "بالنص") */
   partner_id?: number | null
+  /** من المخزون الفعلي للشراكة بس: التحويل لمين (بيحدد النوع والشريك) */
+  recipient?: TransferRecipient | null
   transfer_date?: string
   notes?: string
   items: TransferLineInput[]
@@ -124,6 +137,14 @@ export interface Transfer {
   total_price: number
   notes: string | null
   pieces: number
+  /** المدفوع من سعر التحويل (للبيع بسعر بس، من الدفعات المربوطة بالتحويل) */
+  paid: number
+  /** تحويل تلقائي لفاتورة بيع فيها منتجات من المخزن ده (بيتعدّل ويتدفع مع الفاتورة بس) */
+  sale_id: number | null
+  /** التحويل لمين (null = تحويل قديم أو من الشراكة للمخزون الفعلي) */
+  recipient: TransferRecipient | null
+  /** التحويل للشريك: فاتورة البيع اللي عليه في المخزون الفعلي */
+  partner_sale_id: number | null
 }
 
 /** فلتر جدول التحويلات (كله اختياري) */
@@ -136,6 +157,53 @@ export interface TransfersFilter {
   /** من تاريخ / إلى تاريخ (YYYY-MM-DD) */
   from?: string
   to?: string
+  /** الدفع (البيع بسعر بس): paid = اتدفع كله، unpaid = لسه عليه فلوس */
+  payment?: 'paid' | 'unpaid' | ''
+}
+
+/**
+ * ملخص التحويلات (بنفس فلتر الجدول): صف لكل اتجاه + شخص + نوع.
+ * out = طالع من المخزن النشط، in = داخل عليه. partner_id = null في "بالنص" (من غير شريك).
+ */
+export interface TransferSummaryRow {
+  direction: 'out' | 'in'
+  partner_id: number | null
+  partner_name: string | null
+  kind: TransferKind
+  transfers: number
+  pieces: number
+  total_cost: number
+  total_price: number
+}
+
+/** دفعة على تحويل بيع بسعر */
+export interface TransferPaymentInput {
+  transfer_id: number
+  amount: NumLike
+  payment_date?: string
+  notes?: string
+}
+
+/** مجموع فلوس تحويلات البيع في اتجاه واحد */
+export interface TransferMoneyLine {
+  total: number
+  paid: number
+  remaining: number
+  /** عدد التحويلات اللي لسه عليها فلوس */
+  unpaid_count: number
+}
+
+/**
+ * فلوس تحويلات البيع بسعر من وجهة نظر المخزن النشط:
+ * receivable = بيعنا لمخزن تاني (الفلوس لينا) | payable = اشترينا من مخزن تاني (الفلوس علينا)
+ */
+export interface TransferMoney {
+  receivable: TransferMoneyLine
+  payable: TransferMoneyLine
+  /** نفس الأرقام لكل مخزن تاني اتعامل معانا */
+  stores: { workspace_id: number; receivable: TransferMoneyLine; payable: TransferMoneyLine }[]
+  /** أقدم التحويلات اللي لسه عليها فلوس */
+  unpaid: Transfer[]
 }
 
 export interface TransferLine {
@@ -151,6 +219,8 @@ export interface TransferLine {
 
 export interface TransferDetails extends Transfer {
   items: TransferLine[]
+  /** دفعات التحويل (البيع بسعر) */
+  payments: PartnerPayment[]
 }
 
 export interface PartnerPayment {
@@ -161,6 +231,8 @@ export interface PartnerPayment {
   amount: number
   payment_date: string
   notes: string | null
+  /** الدفعة على تحويل بيع (null = تسوية عادية) */
+  transfer_id: number | null
 }
 
 export interface PartnerPaymentInput {
@@ -183,6 +255,8 @@ export interface PartnerAccount {
   settled: number
   /** المستحق دلوقتي: موجب = الشراكة مدينة للشريك، سالب = الشريك مدين */
   balance: number
+  /** حسابه كعميل في المخزون الفعلي (اللي أخده لنفسه). null لصاحب المخزون */
+  store_account: { customer_id: number; sales_count: number; total: number; paid: number; remaining: number } | null
 }
 
 /** مبيعات شريك واحد في الفترة (الفواتير اللي هو عملها) */
@@ -332,6 +406,8 @@ export interface Customer {
   id: number
   name: string
   phone: string | null
+  /** 1 = العميل ده شريك في شراكة (عميله في المخزون الفعلي) */
+  is_partner: number
 }
 
 export interface CustomerInput {
@@ -360,6 +436,9 @@ export interface InvoiceLine {
 export interface Purchase {
   id: number
   supplier_name: string
+  /** الشريك اللي اشترى البضاعة (في الشراكة بس) */
+  partner_id: number | null
+  partner_name: string | null
   purchase_date: string
   shipping_cost: number
   total: number
@@ -382,6 +461,8 @@ export interface Sale {
   id: number
   customer_id: number | null
   customer_name: string | null
+  /** 1 = العميل شريك (بيتكتب جنب اسمه "(الشريك)") */
+  customer_is_partner: number
   /** الشريك اللي عمل الفاتورة (في الشراكات بس) */
   partner_id: number | null
   partner_name: string | null
@@ -403,6 +484,10 @@ export interface SaleLine extends InvoiceLine {
   category_id: number
   purchase_price: number
   selling_price: number
+  /** السطر جاي من مخزن تاني (اتحوّل تلقائي): المخزن والمنتج فيه وسعر التحويل. null = من مخزن الفاتورة */
+  source_workspace_id: number | null
+  source_item_id: number | null
+  transfer_price: number | null
 }
 
 export interface SalePayment {
@@ -435,11 +520,15 @@ export interface ReturnRecord {
   reason: string | null
   total: number
   customer_name: string | null
+  /** 1 = العميل شريك (بيتكتب جنب اسمه "(الشريك)") */
+  customer_is_partner: number
   supplier_name: string | null
 }
 
 export interface ReturnLine extends InvoiceLine {
   unit_price: number
+  /** رجع للمخزن الأصلي (مش مخزن الفاتورة) */
+  to_source: number
 }
 
 export interface ReturnWithLines extends ReturnRecord {
@@ -462,6 +551,8 @@ export interface PurchaseLineInput {
 
 export interface PurchaseInput {
   supplier_name: string
+  /** الشريك اللي اشترى: لازم في الشراكة، وبيتجاهل في المخزون الفعلي */
+  partner_id?: number | null
   purchase_date?: string
   shipping_cost?: NumLike
   notes?: string
@@ -469,10 +560,15 @@ export interface PurchaseInput {
 }
 
 export interface SaleLineInput {
+  /** المنتج في مخزن الفاتورة، أو في source_workspace_id لو السطر جاي من مخزن تاني */
   item_id: number
   condition: Condition
   quantity: NumLike
   selling_price?: NumLike
+  /** مخزن تاني (المخزون الفعلي ↔ شراكة): القطع بتتحوّل تلقائي (بيع بسعر) قبل البيع */
+  source_workspace_id?: number | null
+  /** سعر التحويل للمخزن التاني (الافتراضي: سعر البيع في السطر) */
+  transfer_price?: NumLike
 }
 
 export interface SaleInput {
@@ -495,6 +591,8 @@ export interface ReturnLineInput {
   condition: Condition
   quantity: NumLike
   unit_price: NumLike
+  /** القطع جاية من مخزن تاني في الفاتورة: ترجع له بدل مخزن الفاتورة (والمستحق عليه بيقل) */
+  to_source?: boolean
 }
 
 export interface ReturnInput {
@@ -578,7 +676,8 @@ export interface DashboardSummary {
 }
 
 // ---------- الإعدادات والنسخ الاحتياطي ----------
-export type SettingKey = 'language' | 'shop_name' | 'shop_phone' | 'shop_address'
+/** owner_name = صاحب المخزون الفعلي (شريك في كل شراكة بيعملها). بيتغيّر من صفحة الشراكات بس. */
+export type SettingKey = 'language' | 'shop_name' | 'shop_phone' | 'shop_address' | 'owner_name'
 export type SettingsMap = Partial<Record<SettingKey, string>>
 
 /** حالة النسخ الاحتياطي التلقائي (إعدادات الجهاز ده) */

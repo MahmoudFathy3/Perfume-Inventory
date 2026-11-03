@@ -1,7 +1,7 @@
 import type { SettingKey, SettingsMap } from '@shared/types'
 import { execute, queryAll, queryOne } from '../../database/connection'
 
-export const SETTING_KEYS: readonly SettingKey[] = ['language', 'shop_name', 'shop_phone', 'shop_address']
+export const SETTING_KEYS: readonly SettingKey[] = ['language', 'shop_name', 'shop_phone', 'shop_address', 'owner_name']
 
 export function get({ key }: { key: SettingKey }): string | null {
   return queryOne<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key])?.value ?? null

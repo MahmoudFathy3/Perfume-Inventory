@@ -10,11 +10,12 @@ import type { InvoiceDocData } from '@/shared/components/invoice/invoice.types'
 import { InvoicesTable } from '@/shared/components/invoice/InvoicesTable'
 import { InvoiceViewer } from '@/shared/components/invoice/InvoiceViewer'
 import { PurchaseForm } from '@/shared/components/invoice/PurchaseForm'
-import { Button, Modal, PageHeader } from '@/shared/components/ui'
+import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { useCategories } from '../../categories'
 import { useItems } from '../../items'
+import { useWorkspaces } from '../../workspaces'
 import { purchasesApi } from '../api/purchases.api'
 import { usePurchases } from '../hooks/usePurchases'
 
@@ -22,9 +23,13 @@ export default function PurchasesPage() {
   const { t } = useTranslation()
   const toast = useToast()
   const [search, setSearch] = useState('')
+  const { active } = useWorkspaces()
+  const partners = active.kind === 'partnership' ? active.partners : []
+  const [partnerFilter, setPartnerFilter] = useState('') // '' = كل الشركاء
+  const partnerId = partnerFilter ? Number(partnerFilter) : undefined
   const [form, setForm] = useState<{ purchase: PurchaseWithLines | null } | null>(null) // purchase = null: فاتورة جديدة
   const [invoice, setInvoice] = useState<InvoiceDocData | null>(null)
-  const pagination = usePurchases(search)
+  const pagination = usePurchases(search, partnerId)
   const { reload } = pagination
   const { items, reload: reloadItems } = useItems('')
   const { categories, reload: reloadCategories } = useCategories('')
@@ -60,6 +65,13 @@ export default function PurchasesPage() {
   return (
     <>
       <PageHeader title={t('purchases.title')}>
+        {partners.length > 0 && (
+          <Segmented
+            value={partnerFilter}
+            onChange={setPartnerFilter}
+            options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
+          />
+        )}
         <SearchBar value={search} onChange={setSearch} />
         <ExportMenu target={{ dataset: 'purchases', search }} />
         <Button variant="primary" icon={Plus} onClick={() => setForm({ purchase: null })}>{t('purchases.add')}</Button>
@@ -68,6 +80,7 @@ export default function PurchasesPage() {
       <InvoicesTable
         kind="purchase"
         rows={pagination.pageRows}
+        showPartner={partners.length > 0}
         onView={async (row) => {
           const full = await open(row)
           if (full) setInvoice(fromPurchase(full))
@@ -79,7 +92,7 @@ export default function PurchasesPage() {
 
       {form && (
         <Modal title={t(form.purchase ? 'purchases.edit' : 'purchases.add')} onClose={() => setForm(null)} wide>
-          <PurchaseForm items={items} categories={categories} initial={form.purchase} onSubmit={save} onCancel={() => setForm(null)} />
+          <PurchaseForm items={items} categories={categories} partners={partners} initial={form.purchase} onSubmit={save} onCancel={() => setForm(null)} />
         </Modal>
       )}
       {invoice && <InvoiceViewer data={invoice} onClose={() => setInvoice(null)} />}

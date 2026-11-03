@@ -1,5 +1,6 @@
 import type { Condition, PurchaseInput } from '@shared/types'
 import { AppError, money, optionalMoney, parseCondition, qty, round2, today } from '../../lib/errors'
+import { cleanPartner } from '../sales/sales.validation'
 
 export interface CleanLine {
   raw: PurchaseInput['items'][number]
@@ -12,6 +13,8 @@ export interface CleanLine {
 
 export interface CleanPurchase {
   supplier_name: string
+  /** الشريك اللي اشترى (في الشراكة لازم، وفي المخزون الفعلي null) */
+  partnerId: number | null
   date: string
   shipping: number
   notes: string | null
@@ -36,5 +39,5 @@ export function cleanPurchase(input: PurchaseInput): CleanPurchase {
     wholesale_price: optionalMoney(l.wholesale_price)
   }))
   const subtotal = lines.reduce((sum, l) => sum + l.quantity * l.purchase_price, 0)
-  return { supplier_name, date: input.purchase_date || today(), shipping, notes: input.notes || null, subtotal, total: round2(subtotal + shipping), lines }
+  return { supplier_name, partnerId: cleanPartner(input.partner_id), date: input.purchase_date || today(), shipping, notes: input.notes || null, subtotal, total: round2(subtotal + shipping), lines }
 }

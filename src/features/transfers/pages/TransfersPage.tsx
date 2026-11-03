@@ -7,26 +7,36 @@ import { SearchBar } from '@/shared/components/data/SearchBar'
 import { Alert, Button, Card, Field, Input, Modal, PageHeader, Select } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
+import { formatMoney } from '@/shared/utils/format'
+import { CollectDialog } from '../../customers'
+import type { CollectValues } from '../../customers'
 import { useWorkspaces } from '../../workspaces'
 import { transfersApi } from '../api/transfers.api'
 import { TransferDetailsModal } from '../components/TransferDetailsModal'
 import { TransferForm } from '../components/TransferForm'
+import { transferRemaining } from '../components/TransferPaymentStatus'
+import { TransfersSummary } from '../components/TransfersSummary'
 import { TransfersTable } from '../components/TransfersTable'
 import { useTransfers } from '../hooks/useTransfers'
 
 const KINDS: TransferKind[] = ['capital', 'sale', 'half']
-const NO_FILTER: Required<TransfersFilter> = { search: '', kind: '', direction: '', from: '', to: '' }
+const NO_FILTER: Required<TransfersFilter> = { search: '', kind: '', direction: '', from: '', to: '', payment: '' }
 
 /** التحويل بين المخزون الفعلي والشراكات (رأس مال / بيع / بالنص) */
 export default function TransfersPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const toast = useToast()
   const { workspaces, active, label } = useWorkspaces()
   const [form, setForm] = useState<{ transfer: TransferDetails | null } | null>(null) // transfer = null: تحويل جديد
   const [viewing, setViewing] = useState<TransferDetails | null>(null)
+  const [paying, setPaying] = useState<Transfer | null>(null)
   const [filter, setFilter] = useState(NO_FILTER)
   const pagination = useTransfers(filter)
-  const { reload } = pagination
+  const [version, setVersion] = useState(0) // بيتغيّر بعد أي حفظ علشان الملخص يتحدّث
+  const reload = () => {
+    pagination.reload()
+    setVersion((v) => v + 1)
+  }
 
   const nameOf = (id: number) => {
     const ws = workspaces.find((w) => w.id === id)
@@ -51,6 +61,13 @@ export default function TransfersPage() {
     reload()
   }
 
+  async function pay(row: Transfer, values: CollectValues) {
+    await transfersApi.pay({ transfer_id: row.id, ...values })
+    toast.success(t('toast.saved'))
+    setPaying(null)
+    reload()
+  }
+
   // حذف التحويل بيرجّع القطع للمخزن اللي خرجت منه (ويترفض لو الوجهة باعتها)
   const { ask, dialog } = useConfirmDelete<Transfer>(
     async (row) => {
@@ -58,7 +75,11 @@ export default function TransfersPage() {
       toast.success(t('toast.deleted'))
       reload()
     },
-    { getName: (row) => `#${row.id} — ${nameOf(row.from_workspace_id)} ← ${nameOf(row.to_workspace_id)}`, note: t('transfers.deleteNote') }
+    {
+      getName: (row) => `#${row.id} — ${nameOf(row.from_workspace_id)} ← ${nameOf(row.to_workspace_id)}`,
+      note: t('transfers.deleteNote'),
+      getWarning: (row) => (row.paid > 0 ? t('transfers.deletePaymentsWarning', { amount: formatMoney(row.paid, i18n.language) }) : null)
+    }
   )
 
   return (
@@ -82,6 +103,13 @@ export default function TransfersPage() {
             <option value="in">{t('transfers.in', { name: label(active) })}</option>
           </Select>
         </Field>
+        <Field label={t('transfers.payment')} className="!mb-0">
+          <Select value={filter.payment} onChange={(e) => set('payment')(e.target.value as 'paid' | 'unpaid' | '')}>
+            <option value="">{t('transfers.allPayments')}</option>
+            <option value="unpaid">{t('transfers.unpaid')}</option>
+            <option value="paid">{t('transfers.paidFull')}</option>
+          </Select>
+        </Field>
         <Field label={t('common.from')} className="!mb-0">
           <Input type="date" value={filter.from} onChange={(e) => set('from')(e.target.value)} />
         </Field>
@@ -93,9 +121,13 @@ export default function TransfersPage() {
         )}
       </Card>
 
+      <TransfersSummary filter={filter} storeName={label(active)} refreshKey={version} />
+
       <TransfersTable
         rows={pagination.pageRows}
         nameOf={nameOf}
+        activeId={active.id}
+        onPay={setPaying}
         onView={async (row) => setViewing(await transfersApi.get({ id: row.id }))}
         onEdit={async (row) => setForm({ transfer: await transfersApi.get({ id: row.id }) })}
         onDelete={ask}
@@ -107,6 +139,17 @@ export default function TransfersPage() {
           {form.transfer && <Alert tone="info">{t('transfers.editNote')}</Alert>}
           <TransferForm active={active} workspaces={workspaces} nameOf={nameOf} initial={form.transfer} onSubmit={save} onCancel={() => setForm(null)} />
         </Modal>
+      )}
+      {paying && (
+        <CollectDialog
+          title={t(paying.from_workspace_id === active.id ? 'transfers.collectTitle' : 'transfers.payTitle', { id: paying.id })}
+          subject={`${nameOf(paying.from_workspace_id)} ← ${nameOf(paying.to_workspace_id)}${paying.partner_name ? ` · ${paying.partner_name}` : ''}`}
+          remaining={transferRemaining(paying)}
+          note={t('transfers.paymentNote')}
+          submitLabel={t('transfers.confirmPayment')}
+          onSubmit={(values) => pay(paying, values)}
+          onClose={() => setPaying(null)}
+        />
       )}
       {viewing && <TransferDetailsModal transfer={viewing} nameOf={nameOf} onClose={() => setViewing(null)} />}
       {dialog}

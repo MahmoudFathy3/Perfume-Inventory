@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Category, Item, PurchaseInput, PurchaseWithLines } from '@shared/types'
+import type { Category, Item, PurchaseInput, PurchaseWithLines, WorkspacePartner } from '@shared/types'
 import { useSubmit } from '../../hooks/useSubmit'
 import { todayString } from '../../utils/format'
-import { Field, FormActions, Input, NumberInput } from '../ui'
+import { Field, FormActions, Input, NumberInput, Segmented } from '../ui'
 import { InvoiceLinesTable } from './InvoiceLinesTable'
 import { InvoiceTotals } from './InvoiceTotals'
 import { purchaseToLines, toPurchaseLines, useInvoiceLines } from './useInvoiceLines'
@@ -11,14 +11,16 @@ import { purchaseToLines, toPurchaseLines, useInvoiceLines } from './useInvoiceL
 interface PurchaseFormProps {
   items: Item[]
   categories: Category[]
+  /** شركاء الشراكة النشطة (فاضية في المخزون الفعلي): لازم نختار مين اللي اشترى */
+  partners?: WorkspacePartner[]
   /** فاتورة موجودة (وضع التعديل) */
   initial?: PurchaseWithLines | null
   onSubmit: (payload: PurchaseInput) => Promise<unknown>
   onCancel: () => void
 }
 
-/** فاتورة شراء: المورد + سطور المنتجات (ممكن منتج جديد بصنفه) + الشحن (عليك) */
-export function PurchaseForm({ items, categories, initial, onSubmit, onCancel }: PurchaseFormProps) {
+/** فاتورة شراء: الشريك اللي اشترى (في الشراكة) + المورد + سطور المنتجات (ممكن منتج جديد بصنفه) + الشحن (عليك) */
+export function PurchaseForm({ items, categories, partners = [], initial, onSubmit, onCancel }: PurchaseFormProps) {
   const { t } = useTranslation()
   const [header, setHeader] = useState({
     supplier: initial?.supplier_name ?? '',
@@ -26,12 +28,14 @@ export function PurchaseForm({ items, categories, initial, onSubmit, onCancel }:
     shipping: initial?.shipping_cost ? String(initial.shipping_cost) : '',
     notes: initial?.notes ?? ''
   })
+  const [partnerId, setPartnerId] = useState(initial?.partner_id ? String(initial.partner_id) : '')
   const state = useInvoiceLines('purchase', items, 'retail', initial ? purchaseToLines(initial) : undefined)
   const set = (key: keyof typeof header) => (value: string) => setHeader({ ...header, [key]: value })
 
   const { submit, saving } = useSubmit(() =>
     onSubmit({
       supplier_name: header.supplier,
+      partner_id: partnerId ? Number(partnerId) : null,
       purchase_date: header.date,
       shipping_cost: header.shipping,
       notes: header.notes,
@@ -41,6 +45,12 @@ export function PurchaseForm({ items, categories, initial, onSubmit, onCancel }:
 
   return (
     <form onSubmit={submit}>
+      {partners.length > 0 && (
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-slate-500">{t('purchases.boughtBy')}</span>
+          <Segmented value={partnerId} onChange={setPartnerId} options={partners.map((p) => ({ value: String(p.id), label: p.name }))} />
+        </div>
+      )}
       <div className="my-2 grid grid-cols-2 gap-x-4">
         <Field label={t('purchases.supplierName')}>
           <Input value={header.supplier} onChange={(e) => set('supplier')(e.target.value)} autoFocus />
