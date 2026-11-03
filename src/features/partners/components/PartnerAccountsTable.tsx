@@ -31,6 +31,7 @@ export function PartnerAccountsTable({ rows, onSettle, onOpenStoreAccount }: Par
     { key: 'name', header: t('partners.partner'), cell: (a) => <strong>{a.partner.name}</strong> },
     { key: 'capital', header: <HintHeader label={t('partners.capital')} hint={t('partners.capitalHint')} />, cell: (a) => money(a.capital) },
     { key: 'sold', header: <HintHeader label={t('partners.sold')} hint={t('partners.soldHint')} />, cell: (a) => money(a.sold) },
+    { key: 'paidOut', header: <HintHeader label={t('partners.paidOut')} hint={t('partners.paidOutHint')} />, cell: (a) => money(a.paid_out) },
     { key: 'share', header: <HintHeader label={t('partners.profitShare')} hint={t('partners.profitShareHint')} />, cell: (a) => money(a.profit_share) },
     {
       key: 'settled',

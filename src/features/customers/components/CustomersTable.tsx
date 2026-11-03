@@ -30,6 +30,7 @@ export function CustomersTable({ rows, onDetails, onCollect, onEdit, onDelete }:
       header: t('invoice.remaining'),
       cell: (r) => <strong className={r.remaining > 0 ? 'text-rose-600' : 'text-slate-400'}>{money(r.remaining)}</strong>
     },
+    { key: 'credit', header: t('customers.credit'), cell: (r) => (r.credit > 0 ? <strong className="text-green-700">{money(r.credit)}</strong> : <span className="text-slate-400">—</span>) },
     {
       key: 'actions',
       header: t('common.actions'),

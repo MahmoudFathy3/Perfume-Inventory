@@ -7,6 +7,7 @@ import { activeWorkspaceId, inWorkspace, scoped } from '../../lib/workspace'
 export interface PurchaseHeaderInput {
   supplier_name: string
   partner_id: number | null
+  paid_by_partner: number
   purchase_date: string
   shipping_cost: number
   total: number
@@ -65,7 +66,7 @@ export const findLineRows = (purchaseId: number) =>
 
 export const updateHeader = (id: number, h: PurchaseHeaderInput) =>
   void execute(
-    `UPDATE purchases SET supplier_name = @supplier_name, partner_id = @partner_id, purchase_date = @purchase_date,
+    `UPDATE purchases SET supplier_name = @supplier_name, partner_id = @partner_id, paid_by_partner = @paid_by_partner, purchase_date = @purchase_date,
        shipping_cost = @shipping_cost, total = @total, notes = @notes WHERE id = @id`,
     { ...h, id }
   )
@@ -79,8 +80,8 @@ export const returnsCount = (purchaseId: number): number =>
 
 export const insertHeader = (h: PurchaseHeaderInput) =>
   execute(
-    `INSERT INTO purchases(workspace_id, supplier_name, partner_id, purchase_date, shipping_cost, total, notes)
-     VALUES (@workspace_id, @supplier_name, @partner_id, @purchase_date, @shipping_cost, @total, @notes)`,
+    `INSERT INTO purchases(workspace_id, supplier_name, partner_id, paid_by_partner, purchase_date, shipping_cost, total, notes)
+     VALUES (@workspace_id, @supplier_name, @partner_id, @paid_by_partner, @purchase_date, @shipping_cost, @total, @notes)`,
     { ...h, workspace_id: activeWorkspaceId() }
   )
 

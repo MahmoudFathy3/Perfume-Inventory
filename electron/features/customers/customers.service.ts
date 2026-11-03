@@ -1,6 +1,6 @@
 import type { CustomerInput, CustomerStatement, PageParams } from '@shared/types'
 import { AppError, round2 } from '../../lib/errors'
-import { findByCustomer } from '../payments/payments.repository'
+import { findByCustomer, refundsByCustomer } from '../payments/payments.repository'
 import * as salesRepo from '../sales/sales.repository'
 import * as repo from './customers.repository'
 
@@ -36,8 +36,17 @@ export function getStatement({ id }: { id: number }): CustomerStatement {
   const sum = (pick: (s: (typeof sales)[number]) => number) => round2(sales.reduce((acc, s) => acc + pick(s), 0))
   return {
     customer,
-    totals: { total: sum((s) => s.total), paid: sum((s) => s.paid), returns: sum((s) => s.returns_total), remaining: sum((s) => s.remaining) },
+    // paid = اللي دفعه فعلًا (قبل الردود)، refunded = اترد كاش، credit_used = اتخصم من رصيده في فواتير تانية
+    totals: {
+      total: sum((s) => s.total),
+      paid: sum((s) => s.paid + s.refunded + s.credit_used),
+      returns: sum((s) => s.returns_total),
+      remaining: sum((s) => s.remaining),
+      credit: sum((s) => s.credit),
+      refunded: sum((s) => s.refunded)
+    },
     sales,
-    payments: findByCustomer(id)
+    payments: findByCustomer(id),
+    refunds: refundsByCustomer(id)
   }
 }

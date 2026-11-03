@@ -190,7 +190,9 @@
     "createProduct": "Add \"{{name}}\" as a new product",
     "edit": "Edit purchase invoice",
     "deleteNote": "The quantities will be removed from stock (rejected if some were sold).",
-    "boughtBy": "Bought by"
+    "boughtBy": "Bought by",
+    "paidByPartner": "{{name}} paid it from their own pocket (the partnership owes them this amount)",
+    "fromPocket": "Paid from own pocket"
   },
   "sales": {
     "title": "Sales",
@@ -225,7 +227,8 @@
     "allPartners": "All partners",
     "noPartner": "Not set",
     "foreignToggle": "Add products from {{name}} to this invoice",
-    "foreignLocked": "The invoice has products from the other store: remove them first to turn this off"
+    "foreignLocked": "The invoice has products from the other store: remove them first to turn this off",
+    "useCredit": "Use customer credit ({{amount}})"
   },
   "returns": {
     "title": "Returns",
@@ -243,7 +246,13 @@
     "unitPrice": "Unit price",
     "party": "Customer / supplier",
     "pickLines": "Set the returned quantity for each product",
-    "deleteNote": "Deleting a return reverses its effect on stock (rejected if the pieces were sold)."
+    "deleteNote": "Deleting a return reverses its effect on stock (rejected if the pieces were sold).",
+    "refund": "Refunded in cash",
+    "refundHint": "The customer is owed {{amount}} on this invoice: whatever isn’t refunded in cash stays as their credit, deducted from their next invoice.",
+    "refundCashOnly": "Invoice without a customer: all the money ({{amount}}) is refunded in cash.",
+    "invoiceNow": "Invoice now",
+    "stillOwes": "Still owes {{amount}}",
+    "settled": "Settled"
   },
   "settings": {
     "title": "Settings",
@@ -330,7 +339,9 @@
     "AUTO_BACKUP_FAILED": "Automatic backup failed. Make sure the folder exists (or the drive is connected) and has free space",
     "NOT_WAREHOUSE": "This page is for external warehouses only. Switch to one from the sidebar.",
     "PARTNER_INVOICE_PAID": "The partner already paid part of this transfer’s invoice: delete those payments from their statement in the main store first",
-    "SALE_FROM_TRANSFER": "This invoice was created by a transfer to a partner: edit or delete it from the Transfers page"
+    "SALE_FROM_TRANSFER": "This invoice was created by a transfer to a partner: edit or delete it from the Transfers page",
+    "REFUND_EXCEEDS": "The refunded amount is more than the customer’s money on this invoice",
+    "NO_CREDIT": "The customer has no credit"
   },
   "app": {
     "name": "Perfume Inventory"
@@ -501,7 +512,12 @@
     "remaining": "Remaining",
     "namePrefix": "Mr./Ms.",
     "printName": "Print customer name",
-    "printNameShort": "Name"
+    "printNameShort": "Name",
+    "refunded": "Refunded in cash",
+    "creditUsed": "Used from credit",
+    "credit": "Credit",
+    "returns": "Returns",
+    "toAccount": "Credited to the customer (off their balance or as credit)"
   },
   "toast": {
     "created": "Added successfully",
@@ -535,7 +551,16 @@
     "invoices": "Invoices",
     "payments": "Payments",
     "noPayments": "No payments",
-    "deletePaymentNote": "The payment will be deleted and the invoice remaining will increase."
+    "deletePaymentNote": "The payment will be deleted and the invoice remaining will increase.",
+    "credit": "Credit",
+    "creditSub": "Overpaid after returns — deducted from their invoices",
+    "useCredit": "Use credit",
+    "useCreditTitle": "Use customer credit",
+    "fromCredit": "From credit",
+    "refunds": "Money returned to the customer",
+    "refundCash": "Refunded in cash",
+    "refundCredit": "Used on invoice #{{id}}",
+    "noRefunds": "None"
   },
   "payment": {
     "status": "Payment status",
@@ -713,7 +738,7 @@
     "storeNote": "What a partner takes from the main store for themselves is recorded as a sale in the main store to their customer (same name), and their payments are collected from the Customers page.",
     "partner": "Partner",
     "capital": "Capital",
-    "sold": "Sold to partnership",
+    "sold": "Sold to the partnership (own goods)",
     "profitShare": "Profit share",
     "settled": "Actually paid",
     "balance": "Remaining",
@@ -726,9 +751,9 @@
     "paymentType": "Type",
     "payments": "Settlements",
     "partnershipProfit": "Partnership profit",
-    "formula": "Remaining = profit share + sales to the partnership − actually paid. Capital is shown separately and returned at liquidation. Hover the ⓘ next to any column name for an explanation.",
+    "formula": "Remaining = profit share + own goods sold to the partnership + paid from own pocket − actually paid. Capital is shown separately and returned at liquidation. Hover the ⓘ next to any column name for an explanation.",
     "personalNote": "Partner accounts live inside partnerships. Switch to a partnership from the sidebar.",
-    "salesTitle": "Sales by partner",
+    "salesTitle": "Sale invoices each partner made to customers",
     "invoices": "Invoices",
     "returns": "Returns",
     "netSales": "Net sales",
@@ -736,11 +761,23 @@
     "settledToPartner": "paid to them",
     "settledFromPartner": "paid to partnership",
     "capitalHint": "Goods they put in as capital, at cost. Not part of “Remaining”; returned to them when the partnership is liquidated.",
-    "soldHint": "Goods they sold to the partnership at a price (“sale at price” transfers, and their products sold in partnership invoices). The partnership owes them this.",
+    "soldHint": "Their own goods sold to the partnership at a price (“sale at price” transfers from their store, and their products sold in partnership invoices). The partnership owes them this.",
     "profitShareHint": "Their half (50%) of the partnership’s actual profit.",
-    "settledHint": "Money actually paid between the partnership and the partner: settlements and payments of “sale at price” transfers.",
-    "balanceHint": "Remaining = profit share + sales to the partnership − actually paid. “to them” = the partnership still owes them; “they owe” = they owe the partnership.",
-    "storeAccountHint": "What they took for themselves from the main store through sale invoices and haven’t paid yet. Separate from the partnership account."
+    "settledHint": "Money actually paid between the partnership and the partner: settlements and “sale at price” transfer payments.",
+    "balanceHint": "Remaining = profit share + sold to the partnership + paid from own pocket − actually paid. “to them” = the partnership still owes them; “they owe” = they owe the partnership.",
+    "storeAccountHint": "What they took for themselves from the main store through sale invoices and haven’t paid yet. Separate from the partnership account.",
+    "paidOut": "Paid from own pocket",
+    "paidOutHint": "Money they put in from their own pocket: partnership purchases they paid (after returns), plus what they paid their partner in a “settlement between partners” (what they received from their partner is subtracted). The partnership owes them this.",
+    "salesNote": "This is the partnership’s money (part of its profit, split equally), not a debt to anyone.",
+    "transferTitle": "Settle between partners",
+    "transferFrom": "Who paid from their pocket?",
+    "transferTo": "Paid to whom?",
+    "transferSuggest": "To make you even: {{amount}}",
+    "transferUse": "Use it",
+    "transferAfter": "After the settlement",
+    "transferType": "Between partners",
+    "transferRoute": "{{from}} paid {{to}}",
+    "transferNote": "This money was paid between the partners outside the partnership’s money: what {{to}} is owed goes down, and what {{from}} is owed goes up by the same amount."
   },
   "auth": {
     "password": "Password",

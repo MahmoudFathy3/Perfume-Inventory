@@ -9,11 +9,13 @@ import { CustomerSelect } from '../data/CustomerSelect'
 import { Alert, Field, FormActions, Input, NumberInput, Segmented } from '../ui'
 import { InvoiceLinesTable } from './InvoiceLinesTable'
 import { InvoiceTotals } from './InvoiceTotals'
+import { grossPaid } from './SalePaidCell'
 import { saleToLines, toSaleLines, useInvoiceLines } from './useInvoiceLines'
 
 interface SaleFormProps {
   items: Item[]
-  customers: Customer[]
+  /** credit = رصيد العميل (لو ليه): بيتخصم من الفاتورة الجديدة */
+  customers: (Customer & { credit?: number })[]
   /** شركاء الشراكة النشطة (فاضية في المخزون الفعلي): لازم نختار مين اللي باع */
   partners?: WorkspacePartner[]
   /** بيعمل عميل جديد من قايمة العملاء وبيرجّع id */
@@ -65,7 +67,11 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
   const shippingCost = Number(header.shipping) || 0
   const invoiceTotal = state.subtotal + (payer === 'customer' ? shippingCost : 0)
   // وقت الإنشاء: المدفوع اللي كاتبه (أو الفاتورة كلها). وقت التعديل: اللي اتحصّل فعلًا.
-  const paidNow = initial ? initial.paid : header.paid === '' ? invoiceTotal : Number(header.paid) || 0
+  // رصيد العميل بيتخصم من الفاتورة الجديدة (الافتراضي مفعّل)، والكاش الافتراضي = اللي فاضل
+  const [useCredit, setUseCredit] = useState(true)
+  const credit = !initial && customerId ? (customers.find((c) => c.id === customerId)?.credit ?? 0) : 0
+  const creditUsed = useCredit ? Math.min(credit, invoiceTotal) : 0
+  const paidNow = initial ? grossPaid(initial) : creditUsed + (header.paid === '' ? invoiceTotal - creditUsed : Number(header.paid) || 0)
 
   function changePriceType(type: PriceType) {
     setPriceType(type)
@@ -81,7 +87,7 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
       shipping_payer: payer,
       shipping_cost: header.shipping,
       notes: header.notes,
-      ...(editing ? {} : { paid: header.paid }),
+      ...(editing ? {} : { paid: header.paid, use_credit: credit > 0 && useCredit }),
       items: toSaleLines(state.lines)
     })
   )
@@ -140,7 +146,7 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
         </Field>
         {initial ? (
           <Field label={t('invoice.paid')}>
-            <Input readOnly value={formatMoney(initial.paid, i18n.language)} className="bg-slate-50" />
+            <Input readOnly value={formatMoney(grossPaid(initial), i18n.language)} className="bg-slate-50" />
           </Field>
         ) : (
           <Field label={t('sales.paidNow')}>
@@ -149,6 +155,12 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
         )}
       </div>
 
+      {credit > 0 && (
+        <label className="mb-2 flex w-fit items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+          <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} />
+          {t('sales.useCredit', { amount: formatMoney(credit, i18n.language) })}
+        </label>
+      )}
       <InvoiceTotals subtotal={state.subtotal} shipping={payer === 'customer' ? shippingCost : 0} shopShipping={payer === 'shop' ? shippingCost : 0} paid={paidNow} />
       <FormActions saving={saving} onCancel={onCancel} />
     </form>

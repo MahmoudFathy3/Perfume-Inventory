@@ -29,6 +29,8 @@ export function PurchaseForm({ items, categories, partners = [], initial, onSubm
     notes: initial?.notes ?? ''
   })
   const [partnerId, setPartnerId] = useState(initial?.partner_id ? String(initial.partner_id) : '')
+  const [paidByPartner, setPaidByPartner] = useState(!!initial?.paid_by_partner)
+  const buyer = partners.find((p) => String(p.id) === partnerId)
   const state = useInvoiceLines('purchase', items, 'retail', initial ? purchaseToLines(initial) : undefined)
   const set = (key: keyof typeof header) => (value: string) => setHeader({ ...header, [key]: value })
 
@@ -36,6 +38,7 @@ export function PurchaseForm({ items, categories, partners = [], initial, onSubm
     onSubmit({
       supplier_name: header.supplier,
       partner_id: partnerId ? Number(partnerId) : null,
+      paid_by_partner: !!buyer && paidByPartner,
       purchase_date: header.date,
       shipping_cost: header.shipping,
       notes: header.notes,
@@ -49,6 +52,12 @@ export function PurchaseForm({ items, categories, partners = [], initial, onSubm
         <div className="mb-3.5 flex flex-col gap-1.5">
           <span className="text-[13px] font-semibold text-slate-500">{t('purchases.boughtBy')}</span>
           <Segmented value={partnerId} onChange={setPartnerId} options={partners.map((p) => ({ value: String(p.id), label: p.name }))} />
+          {buyer && (
+            <label className={`mt-1 flex w-fit items-center gap-2 rounded-xl border px-3 py-2 text-sm ${paidByPartner ? 'border-green-200 bg-green-50 text-green-900' : 'border-slate-200 text-slate-600'}`}>
+              <input type="checkbox" className="h-4 w-4 accent-primary-600" checked={paidByPartner} onChange={(e) => setPaidByPartner(e.target.checked)} />
+              {t('purchases.paidByPartner', { name: buyer.name })}
+            </label>
+          )}
         </div>
       )}
       <div className="my-2 grid grid-cols-2 gap-x-4">

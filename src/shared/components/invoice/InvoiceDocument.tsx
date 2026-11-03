@@ -92,17 +92,58 @@ export function InvoiceDocument({ data, shop }: InvoiceDocumentProps) {
           <span>{t('invoice.total')}</span>
           <span>{money(data.total)}</span>
         </div>
-        {/* فاتورة بيع لسه عليها متبقي: بنكتب المدفوع والمتبقي */}
-        {data.kind === 'sale' && (data.remaining ?? 0) > 0 && (
+        {/* مرتجع بيع: اللي اترد كاش، والباقي من قيمته اتحسب للعميل (اتخصم من اللي عليه أو بقى رصيد له) */}
+        {data.kind === 'sale_return' && (
+          <>
+            <div className="flex justify-between">
+              <span>{t('invoice.refunded')}</span>
+              <span>{money(data.refunded ?? 0)}</span>
+            </div>
+            {data.total - (data.refunded ?? 0) > 0.005 && (
+              <div className="flex justify-between">
+                <span>{t('invoice.toAccount')}</span>
+                <span>{money(data.total - (data.refunded ?? 0))}</span>
+              </div>
+            )}
+          </>
+        )}
+        {/* فاتورة بيع لسه عليها متبقي أو عليها مرتجع: بنكتب كل رقم لوحده (المدفوع، المرتجع، اللي اترد، الرصيد، المتبقي) */}
+        {data.kind === 'sale' && ((data.remaining ?? 0) > 0 || (data.returns ?? 0) > 0) && (
           <>
             <div className="flex justify-between">
               <span>{t('invoice.paid')}</span>
               <span>{money(data.paid ?? 0)}</span>
             </div>
-            <div className="flex justify-between font-bold">
-              <span>{t('invoice.remaining')}</span>
-              <span>{money(data.remaining ?? 0)}</span>
-            </div>
+            {(data.returns ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span>{t('invoice.returns')}</span>
+                <span>{money(data.returns ?? 0)}</span>
+              </div>
+            )}
+            {(data.refunded ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span>{t('invoice.refunded')}</span>
+                <span>{money(data.refunded ?? 0)}</span>
+              </div>
+            )}
+            {(data.creditUsed ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span>{t('invoice.creditUsed')}</span>
+                <span>{money(data.creditUsed ?? 0)}</span>
+              </div>
+            )}
+            {(data.credit ?? 0) > 0 && (
+              <div className="flex justify-between font-bold">
+                <span>{t('invoice.credit')}</span>
+                <span>{money(data.credit ?? 0)}</span>
+              </div>
+            )}
+            {(data.remaining ?? 0) > 0 && (
+              <div className="flex justify-between font-bold">
+                <span>{t('invoice.remaining')}</span>
+                <span>{money(data.remaining ?? 0)}</span>
+              </div>
+            )}
           </>
         )}
       </section>

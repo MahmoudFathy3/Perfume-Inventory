@@ -2,13 +2,15 @@ import type { Customer, CustomerSummary, Page, PageParams } from '@shared/types'
 import { execute, queryAll, queryOne } from '../../database/connection'
 import { queryPage } from '../../lib/pagination'
 import { searchClause } from '../../lib/search'
+import { saleCreditUsed, salePaid, saleRefundedCash } from '../../lib/salePaid'
 import { activeWorkspaceId, inWorkspace, scoped } from '../../lib/workspace'
 
 /** رصيد كل فاتورة لعميل: المدفوع والمرتجع (المتبقي = الإجمالي - المرتجع - المدفوع، مش أقل من صفر) */
 const BALANCES = `
   WITH balances AS (
     SELECT s.id, s.customer_id, s.total,
-           COALESCE((SELECT SUM(amount) FROM sale_payments p WHERE p.sale_id = s.id), 0) AS paid,
+           ${salePaid('s.id')} AS paid,
+           ${saleRefundedCash('s.id')} + ${saleCreditUsed('s.id')} AS refunded,
            COALESCE((SELECT SUM(total) FROM returns r WHERE r.sale_id = s.id), 0) AS returns_total
     FROM sales s WHERE s.customer_id IS NOT NULL
   )`
@@ -21,8 +23,9 @@ function listQuery(opts: ListOptions) {
   const sql = `${BALANCES}
      SELECT c.id, c.name, c.phone, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = c.id) AS is_partner, COUNT(b.id) AS sales_count,
             ROUND(COALESCE(SUM(b.total), 0), 2) AS total,
-            ROUND(COALESCE(SUM(b.paid), 0), 2) AS paid,
-            ROUND(COALESCE(SUM(MAX(0, ROUND(b.total - b.returns_total - b.paid, 2))), 0), 2) AS remaining
+            ROUND(COALESCE(SUM(b.paid + b.refunded), 0), 2) AS paid,
+            ROUND(COALESCE(SUM(MAX(0, ROUND(b.total - b.returns_total - b.paid, 2))), 0), 2) AS remaining,
+            ROUND(COALESCE(SUM(MAX(0, ROUND(b.paid - (b.total - b.returns_total), 2))), 0), 2) AS credit
      FROM customers c LEFT JOIN balances b ON b.customer_id = c.id
      ${where} GROUP BY c.id ${opts.owing ? 'HAVING remaining > 0' : ''} ORDER BY c.name`
   return { sql, params }

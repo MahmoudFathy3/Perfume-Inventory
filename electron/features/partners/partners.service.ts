@@ -1,4 +1,4 @@
-import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales } from '@shared/types'
+import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales, PartnerTransferInput } from '@shared/types'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
 import { getDb } from '../../database/connection'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
@@ -17,7 +17,7 @@ function currentPartnership(): number {
 
 /**
  * كشف حساب الشركاء في الشراكة النشطة.
- * المستحق للشريك = نصيبه من الربح + اللي باعه للشراكة - اللي اتسوّى.
+ * المستحق للشريك = نصيبه من الربح + اللي باعه للشراكة + اللي دفعه من جيبه في مشتريات الشراكة - اللي اتسوّى.
  * (رأس المال بيتعرض لوحده علشان بيرجع للشريك في التصفية مش مع الأرباح.)
  * ومع كل شريك حسابه كعميل في المخزون الفعلي (اللي أخده من المخزون الفعلي لنفسه).
  */
@@ -36,9 +36,11 @@ export function ledger(): PartnerLedger {
       partner,
       capital: round2(t.capital),
       sold: round2(t.sold),
+      // التسوية بين الشريكين بتتعرض في "دفعه من جيبه" (اللي دفعه لشريكه بيزيد، واللي استلمه بيقل) مش في "اتدفع فعلًا"، والباقي زي ما هو
+      paid_out: round2(t.paid_out - t.pair_net),
       profit_share,
-      settled: round2(t.settled),
-      balance: round2(profit_share + t.sold - t.settled),
+      settled: round2(t.settled - t.pair_net),
+      balance: round2(profit_share + t.sold + t.paid_out - t.settled),
       store_account: storeAccountOf(partner.customer_id, storeAccounts)
     }
   })
@@ -64,6 +66,27 @@ export function addPayment(input: PartnerPaymentInput): number {
     notes: input.notes?.trim() || null
   })
 }
+
+/**
+ * تسوية بين الشريكين: from دفع لـ to من جيبه. بتتسجل كإن from دفع للشراكة والشراكة دفعت لـ to
+ * (فاللي ليه بيقل عند to وبيزيد عند from بنفس المبلغ). الدفعتين مربوطين وبيتحذفوا مع بعض.
+ */
+export const transferBetweenPartners = (input: PartnerTransferInput): number =>
+  getDb().transaction(() => {
+    const ws = currentPartnership()
+    const partners = workspaces.findPartners(ws)
+    const from = partners.find((p) => p.id === Number(input.from_partner_id))
+    const to = partners.find((p) => p.id === Number(input.to_partner_id))
+    if (!from || !to) throw new AppError('PARTNER_NOT_FOUND')
+    if (from.id === to.id) throw new AppError('DUPLICATE_PARTNERS')
+    const amount = positiveAmount(input.amount)
+    const date = input.payment_date || today()
+    const notes = input.notes?.trim() || null
+    const received = repo.insertPayment({ workspace_id: ws, partner_id: to.id, amount, payment_date: date, notes })
+    const paid = repo.insertPayment({ workspace_id: ws, partner_id: from.id, amount: -amount, payment_date: date, notes })
+    repo.setPair([received, paid], received)
+    return received
+  })()
 
 export function removePayment({ id }: { id: number }): void {
   if (repo.isSalePayment(id)) throw new AppError('PAYMENT_FROM_SALE') // بتتشال لوحدها لو دفع الفاتورة اتغيّر

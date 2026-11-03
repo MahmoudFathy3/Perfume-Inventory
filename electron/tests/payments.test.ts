@@ -67,7 +67,7 @@ test('الدفع الجزئي: المتبقي على العميل والتحصي
 
   // كشف الحساب والرئيسية
   const statement = customers.getStatement({ id: cust })
-  assert.deepEqual(statement.totals, { total: 3000, paid: 3000, returns: 0, remaining: 0 })
+  assert.deepEqual(statement.totals, { total: 3000, paid: 3000, returns: 0, remaining: 0, credit: 0, refunded: 0 })
   assert.deepEqual([statement.sales.length, statement.payments.length], [2, 4])
   const april = dashboard.summary({ from: '2026-04-01', to: '2026-04-30' })
   assert.equal(april.collected, 3000)

@@ -15,6 +15,8 @@ export interface CleanPurchase {
   supplier_name: string
   /** الشريك اللي اشترى (في الشراكة لازم، وفي المخزون الفعلي null) */
   partnerId: number | null
+  /** الشريك دفعها من جيبه (في الشراكة بس) */
+  paidByPartner: boolean
   date: string
   shipping: number
   notes: string | null
@@ -39,5 +41,6 @@ export function cleanPurchase(input: PurchaseInput): CleanPurchase {
     wholesale_price: optionalMoney(l.wholesale_price)
   }))
   const subtotal = lines.reduce((sum, l) => sum + l.quantity * l.purchase_price, 0)
-  return { supplier_name, partnerId: cleanPartner(input.partner_id), date: input.purchase_date || today(), shipping, notes: input.notes || null, subtotal, total: round2(subtotal + shipping), lines }
+  const partnerId = cleanPartner(input.partner_id)
+  return { supplier_name, partnerId, paidByPartner: partnerId !== null && !!input.paid_by_partner, date: input.purchase_date || today(), shipping, notes: input.notes || null, subtotal, total: round2(subtotal + shipping), lines }
 }

@@ -4,10 +4,13 @@ import { inWorkspace } from '../../../lib/workspace'
 import type { Range, Totals } from './shared'
 import { range, CUSTOMER_SHIPPING, SHOP_SHIPPING, RETURN_LOSS } from './shared'
 
+/** الفلوس اللي اتحصّلت فعلًا في الفترة: الدفعات (مش اللي من رصيد العميل) − اللي اترد للعملاء كاش */
 export const collected = (p: Range) =>
   queryOne<{ total: number }>(
-    `SELECT COALESCE(SUM(sp.amount), 0) AS total FROM sale_payments sp JOIN sales s ON s.id = sp.sale_id
-     WHERE ${inWorkspace('s.workspace_id')} AND ${range('sp.payment_date')}`,
+    `SELECT COALESCE((SELECT SUM(sp.amount) FROM sale_payments sp JOIN sales s ON s.id = sp.sale_id
+                      WHERE ${inWorkspace('s.workspace_id')} AND sp.from_credit = 0 AND ${range('sp.payment_date')}), 0)
+          - COALESCE((SELECT SUM(r.amount) FROM sale_refunds r JOIN sales s ON s.id = r.sale_id
+                      WHERE ${inWorkspace('s.workspace_id')} AND r.kind = 'cash' AND ${range('r.refund_date')}), 0) AS total`,
     { ...p }
   )!.total
 

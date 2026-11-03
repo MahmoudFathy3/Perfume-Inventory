@@ -22,9 +22,13 @@ export interface InvoiceDocData {
   shipping: number
   total: number
   notes: string | null
-  /** المدفوع والمتبقي (فواتير البيع بس) */
+  /** المدفوع (قبل أي رد) والمتبقي، واللي اترد كاش، واللي اتخصم من رصيده، والرصيد اللي ليه (فواتير البيع بس) */
   paid?: number
   remaining?: number
+  returns?: number
+  refunded?: number
+  creditUsed?: number
+  credit?: number
   lines: InvoiceDocLine[]
 }
 
@@ -52,8 +56,12 @@ export const fromSale = (s: SaleWithLines): InvoiceDocData => ({
   shipping: s.shipping_cost,
   total: s.total,
   notes: s.notes,
-  paid: s.paid,
+  paid: Math.round((s.paid + s.refunded + s.credit_used) * 100) / 100,
   remaining: s.remaining,
+  returns: s.returns_total,
+  refunded: s.refunded,
+  creditUsed: s.credit_used,
+  credit: s.credit,
   lines: s.items.map((l) => ({ name_ar: l.name_ar, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.selling_price }))
 })
 
@@ -65,5 +73,6 @@ export const fromReturn = (r: ReturnWithLines): InvoiceDocData => ({
   shipping: 0,
   total: r.total,
   notes: r.reason,
+  refunded: r.refunded,
   lines: r.items.map((l) => ({ name_ar: l.name_ar, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.unit_price }))
 })

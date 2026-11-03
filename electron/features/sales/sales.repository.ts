@@ -2,6 +2,7 @@ import type { Condition, Page, PageParams, PriceType, Sale, SaleLine, SaleWithLi
 import { execute, queryAll, queryOne } from '../../database/connection'
 import { queryPage } from '../../lib/pagination'
 import { searchClause } from '../../lib/search'
+import { saleCredit, saleCreditUsed, salePaid, saleRefundedCash, saleRemaining, saleReturns } from '../../lib/salePaid'
 import { activeWorkspaceId, inWorkspace } from '../../lib/workspace'
 import { findBySale } from '../payments/payments.repository'
 
@@ -33,10 +34,12 @@ export interface SaleLineRow {
 const selectSales = () => `
   SELECT s.id, s.customer_id, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, s.partner_id, wp.name AS partner_name, s.sale_date, s.price_type, s.shipping_payer,
          s.shipping_cost, s.total, s.notes,
-         ROUND(COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2) AS paid,
-         ROUND(COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0), 2) AS returns_total,
-         MAX(0, ROUND(s.total - COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0)
-                              - COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2)) AS remaining
+         ROUND(${salePaid('s.id')}, 2) AS paid,
+         ROUND(${saleReturns('s.id')}, 2) AS returns_total,
+         ${saleRemaining('s.id', 's.total')} AS remaining,
+         ${saleCredit('s.id', 's.total')} AS credit,
+         ROUND(${saleRefundedCash('s.id')}, 2) AS refunded,
+         ROUND(${saleCreditUsed('s.id')}, 2) AS credit_used
   FROM sales s LEFT JOIN customers cu ON cu.id = s.customer_id LEFT JOIN workspace_partners wp ON wp.id = s.partner_id
   WHERE ${inWorkspace('s.workspace_id')}`
 
