@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Eye, Trash2 } from 'lucide-react'
+import { ArrowLeftRight, Eye, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { Transfer, TransferKind } from '@shared/types'
 import { Badge, Button, DataTable, RowActions } from '@/shared/components/ui'
@@ -12,10 +12,11 @@ interface TransfersTableProps {
   /** اسم المخزن اللي بيظهر للمستخدم */
   nameOf: (workspaceId: number) => string
   onView: (row: Transfer) => void
+  onEdit: (row: Transfer) => void
   onDelete: (row: Transfer) => void
 }
 
-export function TransfersTable({ rows, nameOf, onView, onDelete }: TransfersTableProps) {
+export function TransfersTable({ rows, nameOf, onView, onEdit, onDelete }: TransfersTableProps) {
   const { t, i18n } = useTranslation()
   const money = (v: number) => formatMoney(v, i18n.language)
 
@@ -42,6 +43,7 @@ export function TransfersTable({ rows, nameOf, onView, onDelete }: TransfersTabl
       cell: (r) => (
         <RowActions>
           <Button size="sm" icon={Eye} onClick={() => onView(r)}>{t('common.view')}</Button>
+          <Button size="sm" icon={Pencil} onClick={() => onEdit(r)}>{t('common.edit')}</Button>
           <Button size="sm" variant="danger" icon={Trash2} onClick={() => onDelete(r)}>{t('common.delete')}</Button>
         </RowActions>
       )

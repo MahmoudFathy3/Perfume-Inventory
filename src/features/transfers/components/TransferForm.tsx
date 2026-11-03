@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Condition, Item, TransferInput, TransferKind, Workspace } from '@shared/types'
+import type { Condition, Item, TransferDetails, TransferInput, TransferKind, Workspace } from '@shared/types'
 import { ProductSelect } from '@/shared/components/data/ProductSelect'
 import { Alert, Button, Field, FormActions, Input, NumberInput, Segmented, Select } from '@/shared/components/ui'
 import { CONDITIONS } from '@/shared/constants'
@@ -25,6 +25,8 @@ interface TransferFormProps {
   active: Workspace
   workspaces: Workspace[]
   nameOf: (workspaceId: number) => string
+  /** تحويل موجود (وضع التعديل) */
+  initial?: TransferDetails | null
   onSubmit: (payload: TransferInput) => Promise<unknown>
   onCancel: () => void
 }
@@ -32,18 +34,24 @@ interface TransferFormProps {
 /**
  * تحويل بين المخزون الفعلي وشراكة. بنقف في مخزن (النشط) ونختار الاتجاه:
  * "من هنا" أو "إلى هنا"، ونوع التحويل (رأس مال / بيع بسعر / بالنص) وقت التحويل نفسه.
+ * وقت التعديل كل حاجة بتبدأ من التحويل القديم.
  */
-export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }: TransferFormProps) {
+export function TransferForm({ active, workspaces, nameOf, initial, onSubmit, onCancel }: TransferFormProps) {
   const { t, i18n } = useTranslation()
   const activeIsPersonal = active.id === PERSONAL_ID
   const partnerships = workspaces.filter((w) => w.kind === 'partnership' && !w.closed_at)
 
-  const [direction, setDirection] = useState<'out' | 'in'>('out')
-  const [otherId, setOtherId] = useState<number>(partnerships[0]?.id ?? 0)
-  const [kind, setKind] = useState<TransferKind>('capital')
-  const [partnerId, setPartnerId] = useState<number>(0)
-  const [header, setHeader] = useState({ date: todayString(), notes: '' })
-  const [lines, setLines] = useState<Line[]>([emptyLine()])
+  const initialPeer = initial && (initial.from_workspace_id === PERSONAL_ID ? initial.to_workspace_id : initial.from_workspace_id)
+  const [direction, setDirection] = useState<'out' | 'in'>(initial && initial.to_workspace_id === active.id ? 'in' : 'out')
+  const [otherId, setOtherId] = useState<number>(initialPeer ?? partnerships[0]?.id ?? 0)
+  const [kind, setKind] = useState<TransferKind>(initial?.kind ?? 'capital')
+  const [partnerId, setPartnerId] = useState<number>(initial?.partner_id ?? 0)
+  const [header, setHeader] = useState({ date: initial?.transfer_date ?? todayString(), notes: initial?.notes ?? '' })
+  const [lines, setLines] = useState<Line[]>(
+    initial
+      ? initial.items.map((l) => ({ item_id: l.from_item_id, condition: l.condition, quantity: String(l.quantity), price: initial.kind === 'sale' ? String(l.unit_price) : '' }))
+      : [emptyLine()]
+  )
 
   // الطرف التاني: لو واقفين في المخزون الفعلي بنختار الشراكة، ولو واقفين في شراكة فالطرف التاني هو المخزون الفعلي
   const peerId = activeIsPersonal ? otherId : PERSONAL_ID
@@ -62,6 +70,12 @@ export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }:
   const changeOther = (id: number) => { setOtherId(id); reset() }
   const patch = (index: number, change: Partial<Line>) => setLines(lines.map((l, i) => (i === index ? { ...l, ...change } : l)))
 
+  // وقت التعديل القطع القديمة بترجع للمصدر الأول، فبتتحسب ضمن المتاح
+  const returning = (l: Line) =>
+    initial && initial.from_workspace_id === fromId
+      ? initial.items.filter((o) => o.from_item_id === l.item_id && o.condition === l.condition).reduce((sum, o) => sum + o.quantity, 0)
+      : 0
+
   const details = lines.map((l) => {
     const item = items.find((i) => i.id === l.item_id)
     const cost = item ? item[`${l.condition}_purchase_price`] : 0
@@ -69,7 +83,7 @@ export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }:
     const retail = item ? item[`${l.condition}_selling_price`] : 0
     const defaultPrice = kind === 'sale' && fromId === PERSONAL_ID && retail > 0 ? retail : cost
     const price = kind === 'sale' && l.price !== '' ? Number(l.price) || 0 : defaultPrice
-    return { item, available: item ? item[`${l.condition}_quantity`] : 0, cost, quantity: Number(l.quantity) || 0, price, defaultPrice }
+    return { item, available: item ? item[`${l.condition}_quantity`] + returning(l) : 0, cost, quantity: Number(l.quantity) || 0, price, defaultPrice }
   })
   const totalCost = details.reduce((sum, d) => sum + d.quantity * d.cost, 0)
   const totalPrice = details.reduce((sum, d) => sum + d.quantity * d.price, 0)
@@ -179,6 +193,7 @@ export function TransferForm({ active, workspaces, nameOf, onSubmit, onCancel }:
         {t('transfers.totalCost')}: <strong>{formatMoney(totalCost, i18n.language)}</strong>
         {kind === 'sale' && <> · {t('transfers.totalPrice')}: <strong>{formatMoney(totalPrice, i18n.language)}</strong></>}
       </p>
+      {initial && <p className="text-sm text-slate-500">{t('transfers.editNote')}</p>}
       <FormActions saving={saving} onCancel={onCancel} />
     </form>
   )

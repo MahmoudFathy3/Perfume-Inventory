@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { app, BrowserWindow, Menu } from 'electron'
 import { initBackend } from './app/bootstrap'
 import { APP_ID, APP_NAME, launchWithSplash } from './windows'
@@ -5,6 +6,10 @@ import { denyPermissions } from './windows/security'
 
 // الاسم لازم يتحدد قبل أي استخدام لمسار بيانات التطبيق (userData)
 app.setName(APP_NAME)
+
+// وقت التطوير (npm run dev) بيانات منفصلة تمامًا عن النسخة المنصّبة: داتا بيز وكلمة سر وإعدادات ونسخ تلقائية،
+// علشان أي تجربة أو migration جديدة متلمسش بيانات الشغل الحقيقية
+if (!app.isPackaged) app.setPath('userData', path.join(app.getPath('appData'), `${APP_NAME} (Dev)`))
 
 // ويندوز: بيربط الأيقونة والتجميع في شريط المهام بالتطبيق المنصّب
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID)

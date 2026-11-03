@@ -1,4 +1,4 @@
-import type { Condition, Page, PageParams, Transfer, TransferKind, TransferLine } from '@shared/types'
+import type { Condition, Page, PageParams, Transfer, TransferFilter, TransferKind, TransferLine } from '@shared/types'
 import { execute, queryAll, queryOne } from '../../database/connection'
 import { queryPage } from '../../lib/pagination'
 import { activeWorkspaceId } from '../../lib/workspace'
@@ -40,11 +40,16 @@ const SELECT = `
          (SELECT COALESCE(SUM(quantity), 0) FROM transfer_items WHERE transfer_id = t.id) AS pieces
   FROM transfers t LEFT JOIN workspace_partners p ON p.id = t.partner_id`
 
-/** صفحة من التحويلات اللي المخزن النشط طرف فيها (طالع منه أو داخل عليه) */
-export function findPage(page: PageParams): Page<Transfer> {
+/** صفحة من التحويلات اللي المخزن النشط طرف فيها (طالع منه أو داخل عليه)، بالفلتر */
+export function findPage(filter: TransferFilter, page: PageParams): Page<Transfer> {
+  const where = ['(t.from_workspace_id = @ws OR t.to_workspace_id = @ws)']
+  if (filter.kind) where.push('t.kind = @kind')
+  if (filter.peerId) where.push('(t.from_workspace_id = @peer OR t.to_workspace_id = @peer)')
+  if (filter.from) where.push('t.transfer_date >= @from')
+  if (filter.to) where.push('t.transfer_date <= @to')
   return queryPage<Transfer>(
-    `${SELECT} WHERE t.from_workspace_id = @ws OR t.to_workspace_id = @ws ORDER BY t.transfer_date DESC, t.id DESC`,
-    { ws: activeWorkspaceId() },
+    `${SELECT} WHERE ${where.join(' AND ')} ORDER BY t.transfer_date DESC, t.id DESC`,
+    { ws: activeWorkspaceId(), kind: filter.kind || null, peer: filter.peerId ?? null, from: filter.from || null, to: filter.to || null },
     page
   )
 }
@@ -54,7 +59,7 @@ export const findById = (id: number) => queryOne<Transfer>(`${SELECT} WHERE t.id
 /** سطور التحويل بأسماء المنتجات (من جهة المصدر) للعرض */
 export const findLines = (transferId: number) =>
   queryAll<TransferLine>(
-    `SELECT ti.id, i.name_ar AS item_name, ti.condition, ti.quantity, ti.unit_cost, ti.unit_price
+    `SELECT ti.id, ti.from_item_id, i.name_ar AS item_name, ti.condition, ti.quantity, ti.unit_cost, ti.unit_price
      FROM transfer_items ti JOIN items i ON i.id = ti.from_item_id WHERE ti.transfer_id = ? ORDER BY ti.id`,
     [transferId]
   )
@@ -78,5 +83,14 @@ export const insertLine = (l: NewTransferLine) =>
      VALUES (@transfer_id, @from_item_id, @to_item_id, @condition, @quantity, @unit_cost, @unit_price)`,
     { ...l }
   )
+
+export const updateHeader = (id: number, h: NewTransfer) =>
+  void execute(
+    `UPDATE transfers SET from_workspace_id = @from_workspace_id, to_workspace_id = @to_workspace_id, kind = @kind, partner_id = @partner_id,
+       transfer_date = @transfer_date, total_cost = @total_cost, total_price = @total_price, notes = @notes WHERE id = @id`,
+    { ...h, id }
+  )
+
+export const deleteLines = (transferId: number) => void execute('DELETE FROM transfer_items WHERE transfer_id = ?', [transferId])
 
 export const remove = (id: number) => void execute('DELETE FROM transfers WHERE id = ?', [id])

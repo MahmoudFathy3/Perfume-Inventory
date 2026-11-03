@@ -67,6 +67,30 @@ test('بيع من المخزون الفعلي للشراكة من غير سعر:
   assert.deepEqual([shopItem().new_quantity, stockOf(personalItem, 'new').quantity], [6, 4])
 })
 
+test('تعديل التحويل: القديم بيترجع والجديد بيتنفّذ بنفس الرقم، والفلتر بالنوع والشراكة والفترة', () => {
+  const id = move(PERSONAL, shop, 'capital', 1, { partner_id: mahmoud })
+  assert.deepEqual([shopItem().new_quantity, stockOf(personalItem, 'new').quantity], [7, 3])
+
+  // من رأس مال قطعة لـ "بالنص" قطعتين بتاريخ قديم
+  transfers.updateTransfer({ id, from_workspace_id: PERSONAL, to_workspace_id: shop, kind: 'half', transfer_date: '2020-01-01', items: [{ item_id: personalItem, condition: 'new', quantity: 2 }] })
+  const t = transfers.getTransfer({ id })
+  assert.deepEqual([t.kind, t.partner_id, t.pieces, t.transfer_date], ['half', null, 2, '2020-01-01'])
+  assert.deepEqual([shopItem().new_quantity, stockOf(personalItem, 'new').quantity], [8, 2])
+  // التعديل بيتأكد من المتاح بعد ما القديم يرجع
+  assert.equal(err(() => transfers.updateTransfer({ id, from_workspace_id: PERSONAL, to_workspace_id: shop, kind: 'half', items: [{ item_id: personalItem, condition: 'new', quantity: 5 }] })), 'OUT_OF_STOCK')
+  assert.equal(transfers.getTransfer({ id }).pieces, 2) // الفاشل مغيّرش حاجة
+
+  const ids = (filter: Parameters<typeof transfers.pageTransfers>[0]) => transfers.pageTransfers({ pageSize: 100, ...filter }).rows.map((r) => r.id)
+  assert.deepEqual(ids({ from: '2020-01-01', to: '2020-12-31' }), [id])
+  assert.equal(ids({ kind: 'half' }).length, 2)
+  assert.ok(!ids({ kind: 'capital' }).includes(id))
+  assert.deepEqual(ids({ peerId: other }), [])
+  assert.equal(ids({ peerId: shop }).length, ids({}).length)
+
+  transfers.removeTransfer({ id })
+  assert.deepEqual([shopItem().new_quantity, shopItem().new_purchase_price, stockOf(personalItem, 'new').quantity], [6, 500, 4])
+})
+
 test('بيع للشراكة بسعر محدد: تكلفة الشراكة بتبقى السعر وبتدخل في المتوسط، والمبلغ مستحق للشريك', () => {
   move(PERSONAL, shop, 'sale', 2, { partner_id: mahmoud, items: [{ item_id: personalItem, condition: 'new', quantity: 2, unit_price: 700 }] })
   const item = shopItem()

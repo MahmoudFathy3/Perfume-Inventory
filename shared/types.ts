@@ -128,11 +128,22 @@ export interface Transfer {
 
 export interface TransferLine {
   id: number
+  /** المنتج في المخزن المصدر (بنحتاجه وقت التعديل) */
+  from_item_id: number
   item_name: string
   condition: Condition
   quantity: number
   unit_cost: number
   unit_price: number
+}
+
+/** فلتر جدول التحويلات (كله اختياري) */
+export interface TransferFilter {
+  kind?: TransferKind | ''
+  /** المخزن التاني (الشراكة) لما نكون واقفين في المخزون الفعلي */
+  peerId?: number
+  from?: string
+  to?: string
 }
 
 export interface TransferDetails extends Transfer {

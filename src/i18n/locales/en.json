@@ -581,7 +581,11 @@
       "capital": "Pieces count as the partner's capital at their cost (not a sale).",
       "sale": "A price per piece is agreed: it becomes owed to (or by) the partner and sets the other store's cost.",
       "half": "Moved with no partner accounting: pieces carry over at cost only."
-    }
+    },
+    "edit": "Edit transfer",
+    "allKinds": "All types",
+    "allPartnerships": "All partnerships",
+    "editNote": "Editing returns the old pieces and redoes the transfer (rejected if the other store already sold or used them)."
   },
   "warehouse": {
     "note": "Quantities and shipments, amounts in SAR. When a shipment arrives, record it as a purchase in the store that received it.",

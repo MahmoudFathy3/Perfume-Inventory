@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import iconPath from '../../resources/icon.png?asset'
 import { APP_NAME, MAIN_WINDOW } from './constants'
 import { appEntryUrl, devToolsEnabled, lockDownWebContents } from './security'
@@ -29,6 +29,12 @@ export function createMainWindow(): MainWindowHandle {
       devTools: devToolsEnabled()
     }
   })
+  // نسخة التطوير: العنوان بيقول DEV علشان متتلخبطش مع النسخة المنصّبة (بياناتها منفصلة، شوف main.ts)
+  if (!app.isPackaged) {
+    window.setTitle(`${APP_NAME} — DEV`)
+    window.on('page-title-updated', (e) => e.preventDefault())
+  }
+
   const indexHtml = path.join(__dirname, '../renderer/index.html')
   lockDownWebContents(window.webContents, appEntryUrl(indexHtml))
 
