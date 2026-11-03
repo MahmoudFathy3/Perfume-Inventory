@@ -1,4 +1,4 @@
-import type { PageParams, SaleInput } from '@shared/types'
+import type { DateFilter, PageParams, SaleInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, money, round2 } from '../../lib/errors'
 import { activeWorkspaceId } from '../../lib/workspace'
@@ -11,7 +11,7 @@ import { cleanSale } from './sales.validation'
 import type { CleanSale } from './sales.validation'
 
 const EPS = 0.005
-type SalesFilter = { search?: string; partnerId?: number }
+type SalesFilter = { search?: string; partnerId?: number } & DateFilter
 export const listSales = (p: SalesFilter) => repo.findAll(p)
 export const pageSales = (p: SalesFilter & PageParams) => repo.findPage(p, p)
 export const getSale = ({ id }: { id: number }) => repo.findById(id)

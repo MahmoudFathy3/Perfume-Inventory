@@ -1,4 +1,4 @@
-import type { PageParams, ReturnInput } from '@shared/types'
+import type { DateFilter, PageParams, ReturnInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError, money, parseCondition, qty, round2, today } from '../../lib/errors'
@@ -8,8 +8,8 @@ import { findById as findSale, isPartnerTransferSale } from '../sales/sales.repo
 import { returnableToSource, returnToSaleSource, syncSalePayments, undoReturnToSaleSource } from '../transfers/transfers.sales'
 import * as repo from './returns.repository'
 
-export const listReturns = (p: { search?: string }) => repo.findAll(p)
-export const pageReturns = (p: { search?: string } & PageParams) => repo.findPage(p, p)
+export const listReturns = (p: { search?: string } & DateFilter) => repo.findAll(p)
+export const pageReturns = (p: { search?: string } & DateFilter & PageParams) => repo.findPage(p, p)
 export const getReturn = ({ id }: { id: number }) => repo.findById(id)
 
 /** مرتجع بيع: القطع بترجع للمخزن | مرتجع شراء: القطع بتخرج من المخزن */

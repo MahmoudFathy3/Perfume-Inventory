@@ -1,6 +1,8 @@
 import type { Condition, PurchaseInput } from '@shared/types'
 import { AppError, money, optionalMoney, parseCondition, qty, round2, today } from '../../lib/errors'
+import { activeWorkspaceId } from '../../lib/workspace'
 import { cleanPartner } from '../sales/sales.validation'
+import { findById as findWorkspace } from '../workspaces/workspaces.repository'
 
 export interface CleanLine {
   raw: PurchaseInput['items'][number]
@@ -13,9 +15,11 @@ export interface CleanLine {
 
 export interface CleanPurchase {
   supplier_name: string
-  /** الشريك اللي اشترى (في الشراكة لازم، وفي المخزون الفعلي null) */
+  /** الشريك اللي اشترى (في الشراكة لازم أو joint، وفي المخزون الفعلي null) */
   partnerId: number | null
-  /** الشريك دفعها من جيبه (في الشراكة بس) */
+  /** الشريكين اشتروها مع بعض (في الشراكة بس، partnerId = null) */
+  joint: boolean
+  /** الشريك (أو الشريكين لو joint) دفعوها من جيبهم (في الشراكة بس) */
   paidByPartner: boolean
   date: string
   shipping: number
@@ -41,6 +45,9 @@ export function cleanPurchase(input: PurchaseInput): CleanPurchase {
     wholesale_price: optionalMoney(l.wholesale_price)
   }))
   const subtotal = lines.reduce((sum, l) => sum + l.quantity * l.purchase_price, 0)
-  const partnerId = cleanPartner(input.partner_id)
-  return { supplier_name, partnerId, paidByPartner: partnerId !== null && !!input.paid_by_partner, date: input.purchase_date || today(), shipping, notes: input.notes || null, subtotal, total: round2(subtotal + shipping), lines }
+  // الشريكين مع بعض: من غير شريك واحد (في الشراكة بس، والمخزون الفعلي بيتجاهلها)
+  const joint = !!input.joint && findWorkspace(activeWorkspaceId())?.kind === 'partnership'
+  const partnerId = joint ? null : cleanPartner(input.partner_id)
+  const paidByPartner = (joint || partnerId !== null) && !!input.paid_by_partner
+  return { supplier_name, partnerId, joint, paidByPartner, date: input.purchase_date || today(), shipping, notes: input.notes || null, subtotal, total: round2(subtotal + shipping), lines }
 }

@@ -1,7 +1,16 @@
+import type { ExportParams } from '@shared/types'
 import { queryAll } from '../../../database/connection'
+import { dateClause } from '../../../lib/dateRange'
 import { searchClause } from '../../../lib/search'
 import { scoped } from '../../../lib/workspace'
 import { type Row, type SheetDef, col } from './sheet'
+
+/** البحث + الفترة زي جدول المرتجعات */
+function returnsWhere({ search, ...range }: ExportParams) {
+  const { where, params } = scoped('r.workspace_id', searchClause(['r.reason', 'cu.name', 'p.supplier_name'], search))
+  const dates = dateClause('r.return_date', range)
+  return { where: `${where} ${dates.where}`, params: { ...params, ...dates.params } }
+}
 
 export const returnsSheet: SheetDef = {
   key: 'returns',
@@ -9,8 +18,8 @@ export const returnsSheet: SheetDef = {
     col('id', 'number', 10), col('date', 'date'), col('type', 'enum', 16), col('source_invoice', 'number', 14), col('party', 'text', 24),
     col('reason', 'text', 28), col('lines_count', 'number', 12), col('total_quantity', 'number', 12), col('total', 'money')
   ],
-  rows: ({ search }) => {
-    const { where, params } = scoped('r.workspace_id', searchClause(['r.reason', 'cu.name', 'p.supplier_name'], search))
+  rows: (f) => {
+    const { where, params } = returnsWhere(f)
     return queryAll<Row>(
       `SELECT r.id, r.return_date AS date, r.type, COALESCE(r.sale_id, r.purchase_id) AS source_invoice,
               COALESCE(cu.name, p.supplier_name) AS party, r.reason,
@@ -31,8 +40,8 @@ export const returnItemsSheet: SheetDef = {
     col('name_ar', 'text', 24), col('name_en', 'text', 24), col('condition', 'enum', 12), col('quantity', 'number', 10),
     col('unit_price', 'money'), col('line_total', 'money'), col('reason', 'text', 26)
   ],
-  rows: ({ search }) => {
-    const { where, params } = scoped('r.workspace_id', searchClause(['r.reason', 'cu.name', 'p.supplier_name'], search))
+  rows: (f) => {
+    const { where, params } = returnsWhere(f)
     return queryAll<Row>(
       `SELECT r.id AS invoice, r.return_date AS date, r.type, COALESCE(r.sale_id, r.purchase_id) AS source_invoice,
               COALESCE(cu.name, p.supplier_name) AS party, i.name_ar, i.name_en, ri.condition, ri.quantity,

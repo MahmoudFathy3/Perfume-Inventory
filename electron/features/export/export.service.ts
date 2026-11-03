@@ -12,7 +12,7 @@ export interface BuiltExport {
 }
 
 /** كل بيانات الـ dataset (بيستخدمها التصدير لـ PDF من الواجهة) */
-export const exportData = (req: Pick<ExportRequest, 'dataset' | 'search' | 'itemId' | 'partnerId'>): ExportSheet[] => loadSheets(req.dataset, req)
+export const exportData = (req: Pick<ExportRequest, 'dataset' | 'search' | 'itemId' | 'partnerId' | 'from' | 'to'>): ExportSheet[] => loadSheets(req.dataset, req)
 
 export async function buildExport(req: ExportRequest): Promise<BuiltExport> {
   const fileName = `${req.labels.sheets[req.dataset] ?? req.dataset}-${today()}`

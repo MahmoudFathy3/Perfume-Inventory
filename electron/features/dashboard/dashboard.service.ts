@@ -12,8 +12,11 @@ const toMap = (rows: { period: string; value: number | null }[]) => Object.fromE
 
 const ALL_TIME: repo.Range = { from: null, to: null }
 
-/** الربح الفعلي للمخزن النشط من أول يوم (بيستخدمه ملخص المخازن وحسابات الشركاء) */
-export const lifetimeProfit = (): number => profitOf(ALL_TIME, repo.sales(ALL_TIME).shop_shipping)
+/**
+ * صافي ربح المخزن النشط من أول يوم = الربح الفعلي − المصروفات اللي بتتخصم من الربح
+ * (بيستخدمه ملخص المخازن وحسابات الشركاء: نصيب كل شريك من الصافي)
+ */
+export const lifetimeProfit = (): number => profitOf(ALL_TIME, repo.sales(ALL_TIME).shop_shipping) - repo.expenses(ALL_TIME).deducted
 
 /** ملخص كل المخازن المفتوحة (الفعلي والشراكات، من غير المخازن الخارجية): بيتحسب لكل واحد على بياناته هو بس */
 export function overview(): WorkspaceOverview[] {
@@ -43,6 +46,8 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
   const sales = repo.sales(p)
   const saleReturns = repo.returnsOf('sale', p)
   const purchaseReturns = repo.returnsOf('purchase', p)
+  const expenses = repo.expenses(p)
+  const profit = profitOf(p, sales.shop_shipping)
   const bounds = repo.dataRange()
   const { mode, periods } = buildPeriods(p.from || bounds.min, p.to || bounds.max)
   const len = mode === 'month' ? 7 : 10
@@ -87,7 +92,9 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
     today: { count: todaySales.count, total: round2(todaySales.total) },
     receivables: round2(repo.receivables()),
     collected: round2(repo.collected(p)),
-    profit: round2(profitOf(p, sales.shop_shipping)),
+    profit: round2(profit),
+    expenses: { count: expenses.count, total: round2(expenses.total), deducted: round2(expenses.deducted) },
+    net_profit: round2(profit - expenses.deducted),
     profit_previous: prev ? { ...prev, profit: round2(profitOf(prev, repo.sales(prev).shop_shipping)) } : null,
     counts: repo.counts(),
     charts: {

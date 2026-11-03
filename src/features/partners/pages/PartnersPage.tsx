@@ -8,12 +8,13 @@ import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useQuery } from '@/shared/hooks/useQuery'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney } from '@/shared/utils/format'
-import { DateRangeFilter } from '../../dashboard'
-import type { DateRange } from '../../dashboard'
+import { DateRangeFilter } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { useWorkspaces } from '../../workspaces'
 import { partnersApi } from '../api/partners.api'
 import { PartnerAccountsTable } from '../components/PartnerAccountsTable'
 import { PartnerSalesTable } from '../components/PartnerSalesTable'
+import { PartnerStatementModal } from '../components/PartnerStatementModal'
 import { PaymentForm } from '../components/PaymentForm'
 import { PartnerTransferForm } from '../components/PartnerTransferForm'
 import { PaymentsTable } from '../components/PaymentsTable'
@@ -43,6 +44,7 @@ function Accounts() {
   const navigate = useNavigate()
   const ledger = useQuery(() => partnersApi.ledger(), [])
   const [settling, setSettling] = useState<PartnerAccount | null>(null)
+  const [details, setDetails] = useState<PartnerAccount | null>(null)
   const [transferring, setTransferring] = useState(false)
   const [range, setRange] = useState<DateRange>({ from: '', to: '' })
   const sales = useQuery(() => partnersApi.sales({ from: range.from || null, to: range.to || null }), [range.from, range.to])
@@ -94,7 +96,7 @@ function Accounts() {
           <div className="mb-4 grid grid-cols-3 gap-4">
             <StatCard label={t('partners.partnershipProfit')} value={formatMoney(data.profit, i18n.language)} tone="green" big />
           </div>
-          <PartnerAccountsTable rows={data.accounts} onSettle={setSettling} onOpenStoreAccount={openStoreAccount} />
+          <PartnerAccountsTable rows={data.accounts} onSettle={setSettling} onDetails={setDetails} onOpenStoreAccount={openStoreAccount} />
           <p className="mt-3 text-sm text-slate-500">{t('partners.formula')}</p>
           <p className="mt-1 text-sm text-slate-500">{t('partners.storeNote')}</p>
 
@@ -112,6 +114,7 @@ function Accounts() {
           <PaymentForm account={settling} onSubmit={pay} onCancel={() => setSettling(null)} />
         </Modal>
       )}
+      {details && <PartnerStatementModal partnerId={details.partner.id} name={details.partner.name} onClose={() => setDetails(null)} />}
       {transferring && data && (
         <Modal title={t('partners.transferTitle')} onClose={() => setTransferring(false)}>
           <PartnerTransferForm accounts={data.accounts} onSubmit={transfer} onCancel={() => setTransferring(false)} />

@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2, UserRound } from 'lucide-react'
+import { Eye, HandCoins, Pencil, Trash2, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { customerLabel } from '../../utils/partyName'
 import type { Purchase, Sale } from '@shared/types'
@@ -20,18 +20,31 @@ interface InvoicesTableProps<T extends Row> {
   onDelete: (row: T) => void
   /** في الشراكة: عمود الشريك اللي باع / اشترى */
   showPartner?: boolean
+  /** فواتير الشراء: دفعات المورد (الدفع والحذف) */
+  onPayments?: (row: T) => void
 }
 
 /** جدول مشترك لقايمة فواتير الشراء والبيع (عرض / تعديل / حذف) */
-export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDelete, showPartner = false }: InvoicesTableProps<T>) {
+export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDelete, showPartner = false, onPayments }: InvoicesTableProps<T>) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
   const { print } = usePrint()
   const purchase = kind === 'purchase'
   const money = (v: number) => formatMoney(v, lang)
 
+  // فواتير الشراء: المدفوع للمورد والمتبقي له (اللي الشريك دفعها من جيبه بتبان مدفوعة كلها)
+  const purchaseColumns: Column<T>[] = [
+    { key: 'paid', header: t('invoice.paid'), cell: (r) => (!isSale(r) ? money(r.paid) : null) },
+    {
+      key: 'remaining',
+      header: t('purchases.remainingToSupplier'),
+      cell: (r) => (!isSale(r) ? <strong className={r.remaining > 0 ? 'text-rose-600' : 'text-slate-400'}>{money(r.remaining)}</strong> : null)
+    },
+    { key: 'status', header: t('payment.status'), cell: (r) => (!isSale(r) ? <PaymentStatusBadge paid={r.paid} remaining={r.remaining} /> : null) }
+  ]
+
   const saleColumns: Column<T>[] = purchase
-    ? []
+    ? purchaseColumns
     : [
         { key: 'priceType', header: t('sales.priceType'), cell: (r) => (isSale(r) ? <PriceTypeBadge type={r.price_type} /> : null) },
         { key: 'paid', header: t('invoice.paid'), cell: (r) => (isSale(r) ? <SalePaidCell sale={r} /> : null) },
@@ -50,7 +63,7 @@ export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDel
     ...(showPartner
       ? [{ key: 'partner', header: t(purchase ? 'purchases.boughtBy' : 'sales.soldBy'), cell: (r: T) => (
             <span className="flex flex-col items-start gap-0.5">
-              {r.partner_name ?? <span className="text-slate-400">{t('sales.noPartner')}</span>}
+              {r.partner_name ?? (!isSale(r) && r.joint === 1 ? t('purchases.bothPartners') : <span className="text-slate-400">{t('sales.noPartner')}</span>)}
               {!isSale(r) && r.paid_by_partner === 1 && <small className="whitespace-nowrap text-green-700">{t('purchases.fromPocket')}</small>}
             </span>
           ) }]
@@ -76,6 +89,9 @@ export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDel
       cell: (r) => (
         <RowActions>
           <Button size="sm" icon={Eye} onClick={() => onView(r)}>{t('common.view')}</Button>
+          {!isSale(r) && onPayments && r.paid_by_partner !== 1 && (
+            <Button size="sm" icon={HandCoins} onClick={() => onPayments(r)}>{t('purchases.payments')}</Button>
+          )}
           {isSale(r) && r.customer_name && (
             <Button size="sm" icon={UserRound} title={t('invoice.printName')} onClick={() => print(<CustomerNameLabel name={r.customer_name!} />)}>{t('invoice.printNameShort')}</Button>
           )}

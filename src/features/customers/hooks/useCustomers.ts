@@ -1,3 +1,4 @@
+import type { DateFilter } from '@shared/types'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { usePagedQuery } from '@/shared/hooks/usePagedQuery'
 import { useQuery } from '@/shared/hooks/useQuery'
@@ -10,8 +11,9 @@ export function useCustomers(search = '', owing = false) {
   return { customers: data ?? [], loading, reload }
 }
 
-/** صفحة العملاء (الجدول): الـ pagination من الـ backend */
-export function useCustomersPage(search = '', owing = false) {
+/** صفحة العملاء (الجدول): الـ pagination من الـ backend. مع فترة الإجماليات من فواتير الفترة بس. */
+export function useCustomersPage(search = '', owing = false, range: DateFilter = {}) {
   const q = useDebounce(search)
-  return usePagedQuery((page) => customersApi.page({ search: q, owing, ...page }), [q, owing])
+  const { from, to } = range
+  return usePagedQuery((page) => customersApi.page({ search: q, owing, from, to, ...page }), [q, owing, from, to])
 }

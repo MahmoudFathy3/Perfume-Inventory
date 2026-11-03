@@ -18,7 +18,7 @@ test('الداتا بيز: الهيكل كامل والـ migration مرتين �
     assert.ok(tables.includes(t), t)
   }
   assert.ok(!tables.includes('sub_categories'))
-  assert.deepEqual((getDb().prepare('SELECT id FROM schema_migrations').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers', '004_sale_partner', '005_warehouse', '006_warehouse_workspace', '007_warehouse_costs', '008_transfer_payments', '009_partner_customer', '010_mixed_sales', '011_transfer_recipient', '012_purchase_partner', '013_sale_refunds', '014_purchase_paid_by_partner', '015_partner_pair_payments'])
+  assert.deepEqual((getDb().prepare('SELECT id FROM schema_migrations').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers', '004_sale_partner', '005_warehouse', '006_warehouse_workspace', '007_warehouse_costs', '008_transfer_payments', '009_partner_customer', '010_mixed_sales', '011_transfer_recipient', '012_purchase_partner', '013_sale_refunds', '014_purchase_paid_by_partner', '015_partner_pair_payments', '016_expenses', '017_purchase_payments', '018_purchase_joint'])
 })
 
 test('الـ migration على داتا بيز قديمة (قبل المخازن): البيانات بتفضل وبتتبع المخزون الفعلي', () => {
@@ -29,7 +29,7 @@ test('الـ migration على داتا بيز قديمة (قبل المخازن)
   db.exec("INSERT INTO categories(name) VALUES ('دخوني'); INSERT INTO items(category_id, name_ar) VALUES (1, 'خليفه'); INSERT INTO customers(name) VALUES ('سامي')")
 
   migrate(db)
-  assert.deepEqual((db.prepare('SELECT id FROM schema_migrations ORDER BY id').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers', '004_sale_partner', '005_warehouse', '006_warehouse_workspace', '007_warehouse_costs', '008_transfer_payments', '009_partner_customer', '010_mixed_sales', '011_transfer_recipient', '012_purchase_partner', '013_sale_refunds', '014_purchase_paid_by_partner', '015_partner_pair_payments'])
+  assert.deepEqual((db.prepare('SELECT id FROM schema_migrations ORDER BY id').all() as { id: string }[]).map((r) => r.id), ['001_init', '002_workspaces', '003_transfers', '004_sale_partner', '005_warehouse', '006_warehouse_workspace', '007_warehouse_costs', '008_transfer_payments', '009_partner_customer', '010_mixed_sales', '011_transfer_recipient', '012_purchase_partner', '013_sale_refunds', '014_purchase_paid_by_partner', '015_partner_pair_payments', '016_expenses', '017_purchase_payments', '018_purchase_joint'])
   for (const table of ['categories', 'items', 'customers']) {
     assert.deepEqual(db.prepare(`SELECT workspace_id FROM ${table}`).all(), [{ workspace_id: 1 }], table)
   }

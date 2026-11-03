@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { bilingualName, formatDate, formatMoney, formatNumber } from '../../utils/format'
 import type { InvoiceDocData, ShopInfo } from './invoice.types'
+import { useAppName } from '../../hooks/useAppName'
 
 interface InvoiceDocumentProps {
   data: InvoiceDocData
@@ -12,6 +13,7 @@ const cell = 'border border-slate-300 px-2.5 py-1.5 text-start'
 /** الفاتورة نفسها (للعرض والطباعة): ورقة A4 بيضاء بدون ألوان تقيلة */
 export function InvoiceDocument({ data, shop }: InvoiceDocumentProps) {
   const { t, i18n } = useTranslation()
+  const { name: appName } = useAppName()
   const lang = i18n.language
   const money = (v: number) => formatMoney(v, lang)
   const subtotal = data.lines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0)
@@ -21,7 +23,7 @@ export function InvoiceDocument({ data, shop }: InvoiceDocumentProps) {
     <article className="mx-auto w-full max-w-[780px] bg-white p-8 text-sm text-black">
       <header className="mb-6 flex items-start justify-between gap-6 border-b-2 border-slate-800 pb-4">
         <div>
-          <h1 className="text-2xl">{shop.shop_name || t('app.name')}</h1>
+          <h1 className="text-2xl">{shop.shop_name || appName}</h1>
           {shop.shop_address && <p className="mt-1 text-slate-600">{shop.shop_address}</p>}
           {shop.shop_phone && (
             <p className="text-slate-600">

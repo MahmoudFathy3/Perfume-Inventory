@@ -1,7 +1,17 @@
+import type { ExportParams } from '@shared/types'
 import { queryAll } from '../../../database/connection'
+import { dateClause } from '../../../lib/dateRange'
 import { searchClause } from '../../../lib/search'
 import { scoped } from '../../../lib/workspace'
 import { type Row, type SheetDef, col } from './sheet'
+
+/** البحث + فلتر الشريك والفترة زي جدول المشتريات */
+function purchasesWhere({ search, partnerId, ...range }: ExportParams) {
+  const { where, params } = scoped('p.workspace_id', searchClause(['p.supplier_name', 'p.notes'], search))
+  const dates = dateClause('p.purchase_date', range)
+  const byPartner = partnerId ? 'AND (p.partner_id = @partnerId OR p.joint = 1)' : ''
+  return { where: `${where} ${byPartner} ${dates.where}`, params: { ...params, ...dates.params, partnerId } }
+}
 
 export const purchasesSheet: SheetDef = {
   key: 'purchases',
@@ -9,8 +19,8 @@ export const purchasesSheet: SheetDef = {
     col('id', 'number', 10), col('date', 'date'), col('supplier', 'text', 24), col('lines_count', 'number', 12), col('total_quantity', 'number', 12),
     col('subtotal', 'money'), col('shipping_cost', 'money'), col('total', 'money'), col('returns_total', 'money'), col('notes', 'text', 30)
   ],
-  rows: ({ search }) => {
-    const { where, params } = scoped('p.workspace_id', searchClause(['p.supplier_name', 'p.notes'], search))
+  rows: (f) => {
+    const { where, params } = purchasesWhere(f)
     return queryAll<Row>(
       `SELECT p.id, p.purchase_date AS date, p.supplier_name AS supplier,
               (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) AS lines_count,
@@ -31,8 +41,8 @@ export const purchaseItemsSheet: SheetDef = {
     col('shipping_share', 'money'), col('landed_cost', 'money'), col('selling_price', 'money'), col('wholesale_price', 'money'),
     col('line_total', 'money'), col('invoice_notes', 'text', 28)
   ],
-  rows: ({ search }) => {
-    const { where, params } = scoped('p.workspace_id', searchClause(['p.supplier_name', 'p.notes'], search))
+  rows: (f) => {
+    const { where, params } = purchasesWhere(f)
     return queryAll<Row>(
       `SELECT p.id AS invoice, p.purchase_date AS date, p.supplier_name AS supplier, i.name_ar, i.name_en, c.name AS category,
               pi.condition, pi.quantity, pi.purchase_price, (pi.landed_cost - pi.purchase_price) * pi.quantity AS shipping_share,

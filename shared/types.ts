@@ -274,6 +274,35 @@ export interface PartnerAccount {
   store_account: { customer_id: number; sales_count: number; total: number; paid: number; remaining: number } | null
 }
 
+/** حركة واحدة في كشف حساب شريك. amount بإشارة تأثيرها على البند. */
+export interface PartnerStatementLine {
+  date: string
+  /**
+   * transfer = تحويل | purchase = فاتورة شراء دفعها | joint_purchase = فاتورة اشتروها مع بعض (نصيبه منها)
+   * pair = تسوية بين الشريكين | payment = تسوية | transfer_payment = دفع تحويل
+   */
+  ref_type: 'transfer' | 'purchase' | 'joint_purchase' | 'pair' | 'payment' | 'transfer_payment'
+  ref_id: number
+  /** ملاحظات، أو اسم المورد (فاتورة شراء)، أو اسم الشريك التاني (تسوية بين الشريكين) */
+  notes: string | null
+  amount: number
+}
+
+export interface PartnerStatementLines {
+  capital: PartnerStatementLine[]
+  sold: PartnerStatementLine[]
+  paid_out: PartnerStatementLine[]
+  settled: PartnerStatementLine[]
+}
+
+/** كشف حساب شريك مفصّل: الرقم في الجدول جاي منين */
+export interface PartnerStatement {
+  account: PartnerAccount
+  /** نصيبه من الربح: ربح الشراكة الفعلي − المصروفات = الصافي × نسبته */
+  profit: { actual: number; expenses: number; net: number; share_percent: number }
+  lines: PartnerStatementLines
+}
+
 /** مبيعات شريك واحد في الفترة (الفواتير اللي هو عملها) */
 export interface PartnerSales {
   /** null = فواتير قديمة من غير شريك */
@@ -456,12 +485,35 @@ export interface Purchase {
   /** الشريك اللي اشترى البضاعة (في الشراكة بس) */
   partner_id: number | null
   partner_name: string | null
-  /** 1 = الشريك دفعها من جيبه (الشراكة عليها المبلغ ليه) */
+  /** 1 = الشريكين اشتروها مع بعض (partner_id = null) */
+  joint: number
+  /** 1 = الشريك (أو الشريكين لو joint) دفعها من جيبه (الشراكة عليها المبلغ ليه) */
   paid_by_partner: number
   purchase_date: string
   shipping_cost: number
   total: number
   notes: string | null
+  /** اللي اتدفع للمورد (اللي الشريك دفعها من جيبه = الإجمالي) */
+  paid: number
+  /** إجمالي مرتجعات الشراء على الفاتورة */
+  returns_total: number
+  /** اللي لسه للمورد = الإجمالي − المرتجع − المدفوع (مش أقل من صفر) */
+  remaining: number
+}
+
+export interface PurchasePayment {
+  id: number
+  purchase_id: number
+  amount: number
+  payment_date: string
+  notes: string | null
+}
+
+export interface PurchasePaymentInput {
+  purchase_id: number
+  amount: NumLike
+  payment_date?: string
+  notes?: string
 }
 
 export interface PurchaseLine extends InvoiceLine {
@@ -474,6 +526,7 @@ export interface PurchaseLine extends InvoiceLine {
 
 export interface PurchaseWithLines extends Purchase {
   items: PurchaseLine[]
+  payments: PurchasePayment[]
 }
 
 export interface Sale {
@@ -600,8 +653,12 @@ export interface PurchaseInput {
   supplier_name: string
   /** الشريك اللي اشترى: لازم في الشراكة، وبيتجاهل في المخزون الفعلي */
   partner_id?: number | null
-  /** الشريك دفعها من جيبه (مش من فلوس الشراكة) */
+  /** الشريكين اشتروها مع بعض (في الشراكة: بدل partner_id) */
+  joint?: boolean
+  /** الشريك (أو الشريكين لو joint) دفعها من جيبه (مش من فلوس الشراكة) */
   paid_by_partner?: boolean
+  /** المدفوع للمورد وقت الشراء (الافتراضي الفاتورة كلها). وقت الإنشاء بس، والباقي بيتدفع بعد كده من دفعات الفاتورة. */
+  paid?: NumLike
   purchase_date?: string
   shipping_cost?: NumLike
   notes?: string
@@ -719,7 +776,12 @@ export interface DashboardSummary {
   receivables: number
   /** اللي اتحصّل في الفترة */
   collected: number
+  /** الربح الفعلي (قبل المصروفات) */
   profit: number
+  /** مصروفات الفترة: الكل، واللي بيتخصم من الربح */
+  expenses: { count: number; total: number; deducted: number }
+  /** صافي الربح = الربح الفعلي − المصروفات اللي بتتخصم */
+  net_profit: number
   profit_previous: { from: string; to: string; profit: number } | null
   counts: { items: number; categories: number; customers: number }
   charts: {
@@ -777,7 +839,41 @@ export interface ExportSheet {
   rows: Record<string, CellValue>[]
 }
 
-export interface ExportParams {
+// ---------- المصروفات ----------
+export interface Expense {
+  id: number
+  expense_date: string
+  /** النوع (إيجار، راتب...) زي ما المستخدم كتبه */
+  category: string
+  amount: number
+  /** 1 = بيتخصم من الربح، 0 = تسجيل بس */
+  deduct: number
+  notes: string | null
+}
+
+export interface ExpenseInput {
+  expense_date?: string
+  category: string
+  amount: NumLike
+  /** الافتراضي true */
+  deduct?: boolean
+  notes?: string
+}
+
+/** إجماليات المصروفات بنفس الفلتر (كل الصفحات مش الصفحة الحالية بس) */
+export interface ExpensesTotals {
+  count: number
+  total: number
+  deducted: number
+}
+
+/** فلتر الفترة في الجداول (من / إلى اختياري، YYYY-MM-DD) */
+export interface DateFilter {
+  from?: string
+  to?: string
+}
+
+export interface ExportParams extends DateFilter {
   search?: string
   itemId?: number
   /** فواتير شريك واحد بس (مبيعات الشراكة) */

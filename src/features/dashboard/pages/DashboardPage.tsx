@@ -14,8 +14,8 @@ import { ProfitChart } from '../components/charts/ProfitChart'
 import { SalesPurchasesChart } from '../components/charts/SalesPurchasesChart'
 import { StockConditionChart } from '../components/charts/StockConditionChart'
 import { TopProductsChart } from '../components/charts/TopProductsChart'
-import { DateRangeFilter } from '../components/DateRangeFilter'
-import type { DateRange } from '../components/DateRangeFilter'
+import { DateRangeFilter } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { useDashboard } from '../hooks/useDashboard'
 
 const grid = 'grid gap-3.5'
@@ -82,6 +82,13 @@ function StoreDashboard() {
             <StatCard label={t('dashboard.collected')} value={money(s.collected)} sub={t('dashboard.collectedSub')} tone="green" />
             <StatCard label={t('dashboard.invoicesCount')} value={`${num(s.purchases.count)} / ${num(s.sales.count)}`} />
             <StatCard label={t('dashboard.actualProfit')} value={money(s.profit)} tone="green" big />
+            <StatCard
+              label={t('dashboard.expenses')}
+              value={money(s.expenses.total)}
+              sub={s.expenses.deducted === s.expenses.total ? t('dashboard.expensesSub', { count: s.expenses.count }) : t('dashboard.expensesDeductedSub', { amount: money(s.expenses.deducted) })}
+              tone="slate"
+            />
+            <StatCard label={t('dashboard.netProfit')} value={money(s.net_profit)} sub={t('dashboard.netProfitSub')} tone="green" big />
           </div>
 
           <PartnersShare summary={s} />

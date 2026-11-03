@@ -4,6 +4,14 @@ import { inWorkspace } from '../../../lib/workspace'
 import type { Range, Totals } from './shared'
 import { range, CUSTOMER_SHIPPING, SHOP_SHIPPING, RETURN_LOSS } from './shared'
 
+/** مصروفات الفترة (إيجار، رواتب...): الكل، واللي بيتخصم من الربح */
+export const expenses = (p: Range) =>
+  queryOne<{ count: number; total: number; deducted: number }>(
+    `SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total, COALESCE(SUM(CASE WHEN deduct = 1 THEN amount ELSE 0 END), 0) AS deducted
+     FROM expenses WHERE ${inWorkspace('workspace_id')} AND ${range('expense_date')}`,
+    { ...p }
+  )!
+
 /** الفلوس اللي اتحصّلت فعلًا في الفترة: الدفعات (مش اللي من رصيد العميل) − اللي اترد للعملاء كاش */
 export const collected = (p: Range) =>
   queryOne<{ total: number }>(

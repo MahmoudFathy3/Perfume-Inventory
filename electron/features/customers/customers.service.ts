@@ -1,4 +1,4 @@
-import type { CustomerInput, CustomerStatement, PageParams } from '@shared/types'
+import type { CustomerInput, CustomerStatement, DateFilter, PageParams } from '@shared/types'
 import { AppError, round2 } from '../../lib/errors'
 import { findByCustomer, refundsByCustomer } from '../payments/payments.repository'
 import * as salesRepo from '../sales/sales.repository'
@@ -12,8 +12,8 @@ function clean(input: CustomerInput, excludeId = 0): { name: string; phone: stri
   return { name, phone: String(input.phone ?? '').trim() || null }
 }
 
-export const listCustomers = (p: { search?: string; owing?: boolean }) => repo.findAll(p)
-export const pageCustomers = (p: { search?: string; owing?: boolean } & PageParams) => repo.findPage(p, p)
+export const listCustomers = (p: { search?: string; owing?: boolean } & DateFilter) => repo.findAll(p)
+export const pageCustomers = (p: { search?: string; owing?: boolean } & DateFilter & PageParams) => repo.findPage(p, p)
 
 export function createCustomer(input: CustomerInput): number {
   const { name, phone } = clean(input)

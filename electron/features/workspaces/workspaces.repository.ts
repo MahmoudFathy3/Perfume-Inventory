@@ -36,7 +36,7 @@ export const hasData = (id: number): boolean =>
      UNION ALL SELECT 1 FROM sales WHERE workspace_id = @id UNION ALL SELECT 1 FROM returns WHERE workspace_id = @id
      UNION ALL SELECT 1 FROM transfers WHERE from_workspace_id = @id OR to_workspace_id = @id
      UNION ALL SELECT 1 FROM partner_payments WHERE workspace_id = @id
-     UNION ALL SELECT 1 FROM warehouse_items WHERE warehouse_id = @id
+     UNION ALL SELECT 1 FROM expenses WHERE workspace_id = @id     UNION ALL SELECT 1 FROM warehouse_items WHERE warehouse_id = @id
      UNION ALL SELECT 1 FROM warehouse_shipments WHERE warehouse_id = @id OR workspace_id = @id LIMIT 1`,
     { id }
   )
