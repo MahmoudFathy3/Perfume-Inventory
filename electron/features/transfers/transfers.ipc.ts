@@ -6,5 +6,6 @@ export function register(handle: HandleFn): void {
   handle('transfers:get', s.getTransfer)
   handle('transfers:items', s.listSourceItems)
   handle('transfers:create', s.createTransfer)
+  handle('transfers:update', s.updateTransfer)
   handle('transfers:remove', s.removeTransfer)
 }

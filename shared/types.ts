@@ -126,8 +126,22 @@ export interface Transfer {
   pieces: number
 }
 
+/** فلتر جدول التحويلات (كله اختياري) */
+export interface TransfersFilter {
+  /** بحث في اسم الشريك والملاحظات وأسماء المنتجات */
+  search?: string
+  kind?: TransferKind | ''
+  /** out = طالع من المخزن النشط، in = داخل عليه */
+  direction?: 'out' | 'in' | ''
+  /** من تاريخ / إلى تاريخ (YYYY-MM-DD) */
+  from?: string
+  to?: string
+}
+
 export interface TransferLine {
   id: number
+  /** المنتج في مخزن المصدر (بيستخدمه فورم التعديل) */
+  from_item_id: number
   item_name: string
   condition: Condition
   quantity: number

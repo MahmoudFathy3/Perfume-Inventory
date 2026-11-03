@@ -552,6 +552,11 @@
   "transfers": {
     "title": "Transfers",
     "add": "New transfer",
+    "edit": "Edit transfer",
+    "editNote": "Saving returns the old pieces to the store they came from and redoes the transfer with the new data. If the other store already sold some pieces, the new quantity can’t be less than what was sold.",
+    "allKinds": "All types",
+    "allDirections": "All directions",
+    "clearFilters": "Clear filters",
     "route": "From ← To",
     "kind": "Transfer type",
     "partner": "Partner",

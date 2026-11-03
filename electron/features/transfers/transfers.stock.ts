@@ -93,6 +93,12 @@ export function putIn(destination: number, lines: OutgoingLine[]): number[] {
 
 /** عكس التحويل: القطع ترجع للمصدر بتكلفتها الأصلية وتخرج من الوجهة. لو الوجهة بتصرفتها بيرفض. */
 export function reverse(fromWorkspace: number, toWorkspace: number, lines: TransferLineRow[]): void {
+  takeBackFromDestination(toWorkspace, lines)
+  returnToSource(fromWorkspace, lines)
+}
+
+/** نص العكس الأول: القطع بتخرج من الوجهة بسعر التحويل. لو الوجهة باعتها أو استهلكتها بيرفض (OUT_OF_STOCK). */
+export function takeBackFromDestination(toWorkspace: number, lines: TransferLineRow[]): void {
   withWorkspace(toWorkspace, () => {
     for (const l of lines) {
       const stock = itemStock.getStock(l.to_item_id, l.condition)
@@ -103,6 +109,10 @@ export function reverse(fromWorkspace: number, toWorkspace: number, lines: Trans
       itemStock.changeStock(l.to_item_id, l.condition, -l.quantity)
     }
   })
+}
+
+/** نص العكس التاني: القطع بترجع للمصدر بتكلفتها الأصلية */
+export function returnToSource(fromWorkspace: number, lines: TransferLineRow[]): void {
   withWorkspace(fromWorkspace, () => {
     for (const l of lines) {
       itemStock.ensureStock(l.from_item_id, l.condition)
