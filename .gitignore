@@ -3,3 +3,4 @@ out
 dist
 *.sqlite
 .env.local
+dist.zip

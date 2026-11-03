@@ -1,6 +1,7 @@
 import { ArrowRight, Eye, HandCoins, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { customerLabel } from '@/shared/utils/partyName'
 import { Link, useParams } from 'react-router-dom'
 import type { Sale, SalePayment } from '@shared/types'
 import { Pagination } from '@/shared/components/data/Pagination'
@@ -87,7 +88,7 @@ export default function CustomerDetailsPage() {
 
   return (
     <>
-      <PageHeader title={customer.name}>
+      <PageHeader title={customerLabel(customer.name, customer.is_partner, t)}>
         {totals.remaining > 0 && (
           <Button variant="primary" icon={HandCoins} onClick={() => setCollect({ sale: null })}>{t('customers.collect')}</Button>
         )}

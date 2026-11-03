@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Customer, Item, PriceType, SaleInput, SaleWithLines, ShippingPayer, WorkspacePartner } from '@shared/types'
@@ -5,7 +6,7 @@ import { PRICE_TYPES, SHIPPING_PAYERS } from '../../constants'
 import { useSubmit } from '../../hooks/useSubmit'
 import { formatMoney, todayString } from '../../utils/format'
 import { CustomerSelect } from '../data/CustomerSelect'
-import { Field, FormActions, Input, NumberInput, Segmented } from '../ui'
+import { Alert, Field, FormActions, Input, NumberInput, Segmented } from '../ui'
 import { InvoiceLinesTable } from './InvoiceLinesTable'
 import { InvoiceTotals } from './InvoiceTotals'
 import { saleToLines, toSaleLines, useInvoiceLines } from './useInvoiceLines'
@@ -17,6 +18,10 @@ interface SaleFormProps {
   partners?: WorkspacePartner[]
   /** بيعمل عميل جديد من قايمة العملاء وبيرجّع id */
   onCreateCustomer: (name: string) => Promise<number>
+  /** منتجات مخازن تانية ينفع تتباع في نفس الفاتورة (المخزون الفعلي ↔ الشراكات): بتتحوّل تلقائي وقت الحفظ */
+  foreign?: { workspace_id: number; name: string; items: Item[] }[]
+  /** اسم مخزن الفاتورة (عنوان قسم منتجاته في القايمة) */
+  storeLabel?: string
   /** فاتورة موجودة (وضع التعديل) */
   initial?: SaleWithLines | null
   onSubmit: (payload: SaleInput) => Promise<unknown>
@@ -27,7 +32,7 @@ interface SaleFormProps {
  * فاتورة بيع: الشريك اللي باع (في الشراكة) + العميل (بالبحث) + قطاعي/جملة + سطور المنتجات + الشحن (على العميل أو المحل) + المدفوع.
  * المدفوع بيتحدد وقت الإنشاء بس (الافتراضي كله)، والتحصيل بعد كده من صفحة العملاء.
  */
-export function SaleForm({ items, customers, partners = [], onCreateCustomer, initial, onSubmit, onCancel }: SaleFormProps) {
+export function SaleForm({ items, customers, partners = [], foreign = [], storeLabel = '', onCreateCustomer, initial, onSubmit, onCancel }: SaleFormProps) {
   const { t, i18n } = useTranslation()
   const editing = !!initial
   const [customerId, setCustomerId] = useState<number | ''>(initial?.customer_id ?? '')
@@ -40,7 +45,21 @@ export function SaleForm({ items, customers, partners = [], onCreateCustomer, in
   })
   const [priceType, setPriceType] = useState<PriceType>(initial?.price_type ?? 'retail')
   const [payer, setPayer] = useState<ShippingPayer>(initial?.shipping_payer ?? 'customer')
-  const state = useInvoiceLines('sale', items, priceType, initial ? saleToLines(initial) : undefined)
+  // منتجات المخزن ده + المخازن التانية في قايمة واحدة (أرقام المنتجات مش بتتكرر بين المخازن)
+  const sourceById = new Map(foreign.flatMap((f) => f.items.map((i) => [i.id, f.workspace_id] as const)))
+  const allItems = foreign.length > 0 ? [...items, ...foreign.flatMap((f) => f.items)] : items
+  const storeName = (id: number) => foreign.find((f) => f.workspace_id === id)?.name ?? `#${id}`
+  const tagOf = (item: Item) => {
+    const source = sourceById.get(item.id)
+    return source === undefined ? null : storeName(source)
+  }
+  const state = useInvoiceLines('sale', allItems, priceType, initial ? saleToLines(initial) : undefined, (id) => sourceById.get(id) ?? null)
+  const hasForeign = state.lines.some((l) => l.source_workspace_id !== null)
+  // منتجات المخازن التانية مقفولة افتراضيًا (علشان القايمة متتلخبطش)، وبتتفتح بالزرار أو لو الفاتورة فيها منها
+  const [showForeign, setShowForeign] = useState(() => !!initial?.items.some((l) => l.source_workspace_id !== null))
+  const foreignOn = foreign.length > 0 && (showForeign || hasForeign)
+  const otherNames = foreign.map((f) => f.name).join(' / ')
+  const groups = foreignOn ? [{ label: storeLabel, items }, ...foreign.map((f) => ({ label: f.name, items: f.items }))] : undefined
   const set = (key: keyof typeof header) => (value: string) => setHeader({ ...header, [key]: value })
 
   const shippingCost = Number(header.shipping) || 0
@@ -89,7 +108,21 @@ export function SaleForm({ items, customers, partners = [], onCreateCustomer, in
         <Segmented value={priceType} onChange={changePriceType} options={PRICE_TYPES.map((p) => ({ value: p, label: t(`sales.${p}`) }))} />
       </div>
 
-      <InvoiceLinesTable kind="sale" items={items} state={state} />
+      {foreign.length > 0 && (
+        <label className={clsx('mb-2.5 flex w-fit items-center gap-2 rounded-xl border px-3 py-2 text-sm', foreignOn ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600')}>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-primary-600"
+            checked={foreignOn}
+            disabled={hasForeign}
+            title={hasForeign ? t('sales.foreignLocked') : undefined}
+            onChange={(e) => setShowForeign(e.target.checked)}
+          />
+          {t('sales.foreignToggle', { name: otherNames })}
+        </label>
+      )}
+      <InvoiceLinesTable kind="sale" items={foreignOn ? allItems : items} state={state} tagOf={tagOf} groups={groups} storeName={storeName} />
+      {hasForeign && <Alert tone="info">{t('sales.foreignNote')}</Alert>}
 
       <div className="my-2 mt-4 grid grid-cols-2 gap-x-4">
         <Field label={t('sales.shippingCost')}>

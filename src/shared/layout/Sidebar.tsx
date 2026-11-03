@@ -7,6 +7,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '@/features/auth'
 import { useWorkspaces, WorkspaceSwitcher } from '@/features/workspaces'
 import logo from '@/assets/logo.svg'
+import { DevBadge } from '@/shared/components/ui'
 import { useSidebarCollapsed } from './useSidebarCollapsed'
 
 const ALL: WorkspaceKind[] = ['personal', 'partnership', 'warehouse']
@@ -46,8 +47,12 @@ export function Sidebar() {
       )}
     >
       <div className={clsx('mb-2.5 flex items-center gap-3 border-b border-white/10 pb-[18px] pt-1.5 text-xl font-bold text-white', collapsed ? 'justify-center px-0' : 'px-3')}>
-        <img src={logo} alt="" className="h-10 w-10 shrink-0 drop-shadow-md" />
+        <span className="relative shrink-0">
+          <img src={logo} alt="" className="h-10 w-10 drop-shadow-md" />
+          {collapsed && <DevBadge className="absolute -bottom-1.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2" />}
+        </span>
         {!collapsed && <span className="min-w-0 truncate">{t('app.name')}</span>}
+        {!collapsed && <DevBadge />}
       </div>
       <WorkspaceSwitcher compact={collapsed} />
       {LINKS.filter((link) => link.kinds.includes(active.kind)).map(({ to, key, icon: Icon }) => (

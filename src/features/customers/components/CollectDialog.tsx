@@ -17,23 +17,29 @@ interface CollectDialogProps {
   remaining: number
   /** true لو التحصيل على العميل كله (بيتوزع على أقدم فواتيره) */
   perCustomer?: boolean
+  /** عنوان النافذة وزرار التأكيد (الافتراضي: تحصيل من عميل) */
+  title?: string
+  submitLabel?: string
+  /** ملاحظة تحت المتبقي */
+  note?: string
   onSubmit: (values: CollectValues) => Promise<unknown>
   onClose: () => void
 }
 
 /** تحصيل مبلغ من عميل (من قايمة العملاء أو من كشف حسابه) */
-export function CollectDialog({ subject, remaining, perCustomer = false, onSubmit, onClose }: CollectDialogProps) {
+export function CollectDialog({ subject, remaining, perCustomer = false, title, submitLabel, note, onSubmit, onClose }: CollectDialogProps) {
   const { t, i18n } = useTranslation()
   const [values, setValues] = useState<CollectValues>({ amount: String(remaining), payment_date: todayString(), notes: '' })
   const { submit, saving } = useSubmit(() => onSubmit(values))
 
   return (
-    <Modal title={t('customers.collect')} onClose={onClose}>
+    <Modal title={title ?? t('customers.collect')} onClose={onClose}>
       <p className="mb-2 rounded-xl bg-slate-100 px-3 py-2.5 font-bold">{subject}</p>
       <p className="mb-3 text-sm text-slate-500">
         {t('invoice.remaining')}: <strong className="text-rose-600">{formatMoney(remaining, i18n.language)}</strong>
       </p>
       {perCustomer && <Alert tone="info">{t('customers.collectOldestFirst')}</Alert>}
+      {note && <Alert tone="info">{note}</Alert>}
       <form onSubmit={submit}>
         <Field label={t('customers.amount')}>
           <NumberInput max={remaining} value={values.amount} onChange={(e) => setValues({ ...values, amount: e.target.value })} autoFocus />
@@ -46,7 +52,7 @@ export function CollectDialog({ subject, remaining, perCustomer = false, onSubmi
             <Input value={values.notes} onChange={(e) => setValues({ ...values, notes: e.target.value })} />
           </Field>
         </div>
-        <FormActions saving={saving} onCancel={onClose} submitLabel={t('customers.confirmCollect')} />
+        <FormActions saving={saving} onCancel={onClose} submitLabel={submitLabel ?? t('customers.confirmCollect')} />
       </form>
     </Modal>
   )

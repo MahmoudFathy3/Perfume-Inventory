@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import type { PartnerAccount, PartnerPayment, PartnerPaymentInput } from '@shared/types'
 import { EmptyState, Modal, PageHeader, StatCard } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
@@ -14,6 +15,8 @@ import { PartnerAccountsTable } from '../components/PartnerAccountsTable'
 import { PartnerSalesTable } from '../components/PartnerSalesTable'
 import { PaymentForm } from '../components/PaymentForm'
 import { PaymentsTable } from '../components/PaymentsTable'
+
+const PERSONAL_ID = 1
 
 /** حسابات الشركاء في الشراكة النشطة + التسويات. مش بتظهر في المخزون الفعلي. */
 export default function PartnersPage() {
@@ -34,7 +37,8 @@ function PersonalNotice() {
 function Accounts() {
   const { t, i18n } = useTranslation()
   const toast = useToast()
-  const { active, label } = useWorkspaces()
+  const { active, label, activate } = useWorkspaces()
+  const navigate = useNavigate()
   const ledger = useQuery(() => partnersApi.ledger(), [])
   const [settling, setSettling] = useState<PartnerAccount | null>(null)
   const [range, setRange] = useState<DateRange>({ from: '', to: '' })
@@ -57,6 +61,16 @@ function Accounts() {
     { getName: (row) => `${row.partner_name} — ${formatMoney(Math.abs(row.amount), i18n.language)}` }
   )
 
+  // كشف حساب الشريك في المخزون الفعلي: بنبدّل على المخزون الفعلي الأول (العميل تبعه)
+  async function openStoreAccount(customerId: number) {
+    try {
+      await activate(PERSONAL_ID)
+      navigate(`/customers/${customerId}`)
+    } catch (e) {
+      toast.fail(e)
+    }
+  }
+
   const data = ledger.data
   return (
     <>
@@ -66,8 +80,9 @@ function Accounts() {
           <div className="mb-4 grid grid-cols-3 gap-4">
             <StatCard label={t('partners.partnershipProfit')} value={formatMoney(data.profit, i18n.language)} tone="green" big />
           </div>
-          <PartnerAccountsTable rows={data.accounts} onSettle={setSettling} />
+          <PartnerAccountsTable rows={data.accounts} onSettle={setSettling} onOpenStoreAccount={openStoreAccount} />
           <p className="mt-3 text-sm text-slate-500">{t('partners.formula')}</p>
+          <p className="mt-1 text-sm text-slate-500">{t('partners.storeNote')}</p>
 
           <h2 className="mb-3 mt-6">{t('partners.salesTitle')}</h2>
           <DateRangeFilter range={range} onChange={setRange} />

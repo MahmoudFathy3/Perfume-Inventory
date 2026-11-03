@@ -100,7 +100,7 @@ test('الدفع الجزئي: المتبقي على العميل والتحصي
   assert.equal(one<{ c: number }>('SELECT COUNT(*) c FROM sale_payments WHERE sale_id = ?', s2).c, 0)
   assert.equal(err(() => customers.removeCustomer({ id: cust })), 'SQLITE_CONSTRAINT_FOREIGNKEY')
   customers.updateCustomer({ id: cust, name: 'عميل آجل (معدل)', phone: '' })
-  assert.deepEqual(customers.getStatement({ id: cust }).customer, { id: cust, name: 'عميل آجل (معدل)', phone: null })
+  assert.deepEqual(customers.getStatement({ id: cust }).customer, { id: cust, name: 'عميل آجل (معدل)', phone: null, is_partner: 0 })
 })
 
 // ============================================================

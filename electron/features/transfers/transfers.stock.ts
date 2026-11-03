@@ -29,19 +29,23 @@ export interface OutgoingLine {
  * وأي تحويل تاني بتكلفة المصدر.
  */
 function defaultPrice(c: CleanTransfer, stock: { purchase_price: number; selling_price: number }): number {
-  const retail = c.kind === 'sale' && c.from === PERSONAL_WORKSPACE_ID && stock.selling_price > 0
+  if (c.recipient === 'partnership') return stock.purchase_price // للشراكة بالنص: دايمًا بالتكلفة
+  const retail = (c.kind === 'sale' || c.recipient === 'partner') && c.from === PERSONAL_WORKSPACE_ID && stock.selling_price > 0
   return retail ? stock.selling_price : stock.purchase_price
 }
 
-/** بيخصم القطع من المخزن المصدر بتكلفتها (متوسط تكلفة المصدر) ويرجّع بياناتها للوجهة */
-export function takeOut(c: CleanTransfer): OutgoingLine[] {
+/**
+ * بيخصم القطع من المخزن المصدر بتكلفتها (متوسط تكلفة المصدر) ويرجّع بياناتها للوجهة.
+ * move = false: بيوصف القطع بس من غير ما يخصمها (لما فاتورة بيع هي اللي بتخرّجها من المصدر).
+ */
+export function takeOut(c: CleanTransfer, move = true): OutgoingLine[] {
   return withWorkspace(c.from, () =>
     c.lines.map((l) => {
       const item = items.findById(l.item_id)
       if (!item || item.deleted_at) throw new AppError('ITEM_NOT_FOUND')
       const stock = itemStock.getStock(l.item_id, l.condition)
       if (!stock || stock.quantity < l.quantity) throw new AppError('OUT_OF_STOCK')
-      itemStock.changeStock(l.item_id, l.condition, -l.quantity)
+      if (move) itemStock.changeStock(l.item_id, l.condition, -l.quantity)
       return {
         from_item_id: l.item_id,
         condition: l.condition,
@@ -93,6 +97,12 @@ export function putIn(destination: number, lines: OutgoingLine[]): number[] {
 
 /** عكس التحويل: القطع ترجع للمصدر بتكلفتها الأصلية وتخرج من الوجهة. لو الوجهة بتصرفتها بيرفض. */
 export function reverse(fromWorkspace: number, toWorkspace: number, lines: TransferLineRow[]): void {
+  takeBackFromDestination(toWorkspace, lines)
+  returnToSource(fromWorkspace, lines)
+}
+
+/** نص العكس الأول: القطع بتخرج من الوجهة بسعر التحويل. لو الوجهة باعتها أو استهلكتها بيرفض (OUT_OF_STOCK). */
+export function takeBackFromDestination(toWorkspace: number, lines: TransferLineRow[]): void {
   withWorkspace(toWorkspace, () => {
     for (const l of lines) {
       const stock = itemStock.getStock(l.to_item_id, l.condition)
@@ -103,6 +113,10 @@ export function reverse(fromWorkspace: number, toWorkspace: number, lines: Trans
       itemStock.changeStock(l.to_item_id, l.condition, -l.quantity)
     }
   })
+}
+
+/** نص العكس التاني: القطع بترجع للمصدر بتكلفتها الأصلية */
+export function returnToSource(fromWorkspace: number, lines: TransferLineRow[]): void {
   withWorkspace(fromWorkspace, () => {
     for (const l of lines) {
       itemStock.ensureStock(l.from_item_id, l.condition)

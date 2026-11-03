@@ -1,5 +1,6 @@
 import { Eye, Pencil, Trash2, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { customerLabel } from '../../utils/partyName'
 import type { Purchase, Sale } from '@shared/types'
 import { usePrint } from '../../print/PrintProvider'
 import { formatDate, formatMoney } from '../../utils/format'
@@ -16,10 +17,12 @@ interface InvoicesTableProps<T extends Row> {
   onView: (row: T) => void
   onEdit: (row: T) => void
   onDelete: (row: T) => void
+  /** في الشراكة: عمود الشريك اللي باع / اشترى */
+  showPartner?: boolean
 }
 
 /** جدول مشترك لقايمة فواتير الشراء والبيع (عرض / تعديل / حذف) */
-export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDelete }: InvoicesTableProps<T>) {
+export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDelete, showPartner = false }: InvoicesTableProps<T>) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
   const { print } = usePrint()
@@ -42,7 +45,10 @@ export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDel
   const columns: Column<T>[] = [
     { key: 'id', header: '#', cell: (r) => r.id },
     { key: 'date', header: t('common.date'), cell: (r) => formatDate(isSale(r) ? r.sale_date : r.purchase_date) },
-    { key: 'party', header: t(purchase ? 'purchases.supplierName' : 'sales.customerName'), cell: (r) => (isSale(r) ? (r.customer_name ?? t('invoice.noParty')) : r.supplier_name) },
+    { key: 'party', header: t(purchase ? 'purchases.supplierName' : 'sales.customerName'), cell: (r) => (isSale(r) ? (r.customer_name ? customerLabel(r.customer_name, r.customer_is_partner, t) : t('invoice.noParty')) : r.supplier_name) },
+    ...(showPartner
+      ? [{ key: 'partner', header: t(purchase ? 'purchases.boughtBy' : 'sales.soldBy'), cell: (r: T) => r.partner_name ?? <span className="text-slate-400">{t('sales.noPartner')}</span> }]
+      : []),
     ...saleColumns,
     {
       key: 'shipping',

@@ -27,17 +27,33 @@ export const totals = (workspaceId: number) =>
 
 export const findPayments = (workspaceId: number) =>
   queryAll<PartnerPayment>(
-    `SELECT pp.id, pp.partner_id, p.name AS partner_name, pp.amount, pp.payment_date, pp.notes
+    `SELECT pp.id, pp.partner_id, p.name AS partner_name, pp.amount, pp.payment_date, pp.notes, pp.transfer_id
      FROM partner_payments pp JOIN workspace_partners p ON p.id = pp.partner_id
      WHERE pp.workspace_id = ? ORDER BY pp.payment_date DESC, pp.id DESC`,
     [workspaceId]
   )
 
-export const insertPayment = (p: { workspace_id: number; partner_id: number; amount: number; payment_date: string; notes: string | null }) =>
+export const insertPayment = (p: { workspace_id: number; partner_id: number; amount: number; payment_date: string; notes: string | null; transfer_id?: number | null }) =>
   execute(
-    'INSERT INTO partner_payments(workspace_id, partner_id, amount, payment_date, notes) VALUES (@workspace_id, @partner_id, @amount, @payment_date, @notes)',
-    p
+    `INSERT INTO partner_payments(workspace_id, partner_id, amount, payment_date, notes, transfer_id)
+     VALUES (@workspace_id, @partner_id, @amount, @payment_date, @notes, @transfer_id)`,
+    { ...p, transfer_id: p.transfer_id ?? null }
   )
+
+/** دفعات تحويل واحد (الأقدم الأول) */
+export const findTransferPayments = (transferId: number) =>
+  queryAll<PartnerPayment>(
+    `SELECT pp.id, pp.partner_id, p.name AS partner_name, pp.amount, pp.payment_date, pp.notes, pp.transfer_id
+     FROM partner_payments pp JOIN workspace_partners p ON p.id = pp.partner_id
+     WHERE pp.transfer_id = ? ORDER BY pp.payment_date, pp.id`,
+    [transferId]
+  )
+
+export const removeTransferPayments = (transferId: number) => void execute('DELETE FROM partner_payments WHERE transfer_id = ?', [transferId])
+
+/** هل الدفعة على تحويل تلقائي لفاتورة بيع؟ (دي بتمشي مع الفاتورة ومبتتحذفش لوحدها) */
+export const isSalePayment = (id: number): boolean =>
+  queryAll('SELECT 1 FROM partner_payments pp JOIN transfers t ON t.id = pp.transfer_id WHERE pp.id = ? AND t.sale_id IS NOT NULL', [id]).length > 0
 
 export const removePayment = (id: number, workspaceId: number) =>
   void execute('DELETE FROM partner_payments WHERE id = ? AND workspace_id = ?', [id, workspaceId])

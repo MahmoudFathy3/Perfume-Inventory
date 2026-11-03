@@ -13,7 +13,7 @@ export function PaymentsTable({ rows, onDelete }: { rows: PartnerPayment[]; onDe
     { key: 'partner', header: t('partners.partner'), cell: (p) => p.partner_name },
     { key: 'type', header: t('partners.paymentType'), cell: (p) => t(p.amount > 0 ? 'partners.toPartner' : 'partners.fromPartner') },
     { key: 'amount', header: t('partners.amount'), cell: (p) => <strong>{formatMoney(Math.abs(p.amount), i18n.language)}</strong> },
-    { key: 'notes', header: t('common.notes'), cell: (p) => p.notes },
+    { key: 'notes', header: t('common.notes'), cell: (p) => [p.transfer_id ? t('transfers.linked', { id: p.transfer_id }) : null, p.notes].filter(Boolean).join(' · ') },
     { key: 'actions', header: '', cell: (p) => <RowActions><Button size="sm" variant="danger" icon={Trash2} onClick={() => onDelete(p)}>{t('common.delete')}</Button></RowActions> }
   ]
 
