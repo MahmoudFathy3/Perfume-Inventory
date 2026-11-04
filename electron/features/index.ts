@@ -16,16 +16,17 @@ import * as purchases from './purchases/purchases.ipc'
 import * as returns from './returns/returns.ipc'
 import * as sales from './sales/sales.ipc'
 import * as settings from './settings/settings.ipc'
+import * as expenses from './expenses/expenses.ipc'
 import * as transfers from './transfers/transfers.ipc'
 import * as warehouse from './warehouse/warehouse.ipc'
 import * as workspaces from './workspaces/workspaces.ipc'
 
 /** تسجيل كل أوامر الـ IPC. لإضافة feature جديدة: اعمل ملف ipc وضيفه هنا. */
 export function registerAll(ctx: IpcContext): void {
-  // التطبيق المقفول بيرفض كل الأوامر ما عدا الخاصة بكلمة السر
+  // التطبيق المقفول بيرفض كل الأوامر ما عدا الخاصة بكلمة السر، واسم البرنامج (بيظهر في شاشة الدخول)
   const handle = createHandle(ctx.ipcMain, (channel) => {
-    if (!channel.startsWith('auth:') && ctx.session.state() !== 'unlocked') throw new AppError('LOCKED')
+    if (!channel.startsWith('auth:') && channel !== 'app:name' && ctx.session.state() !== 'unlocked') throw new AppError('LOCKED')
   })
-  const features = [auth, workspaces, categories, items, purchases, sales, customers, payments, returns, transfers, warehouse, partners, dashboard, settings, backup, exporting, printing, clipboard]
+  const features = [auth, workspaces, categories, items, purchases, sales, customers, payments, returns, transfers, expenses, warehouse, partners, dashboard, settings, backup, exporting, printing, clipboard]
   for (const feature of features) feature.register(handle, ctx)
 }

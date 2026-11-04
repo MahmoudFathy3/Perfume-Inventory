@@ -48,7 +48,8 @@
     "transfers": "Transfers",
     "partners": "Partner accounts",
     "collapse": "Collapse menu",
-    "expand": "Expand menu"
+    "expand": "Expand menu",
+    "expenses": "Expenses"
   },
   "condition": {
     "label": "Condition",
@@ -78,6 +79,8 @@
     "purchasesTotal": "Total purchases",
     "salesToday": "Today's sales",
     "salesPeriod": "Total sales",
+    "transferSales": "Sales to other stores",
+    "transferSalesSub": "{{count}} transfers · {{pieces}} pieces",
     "saleReturns": "Sale returns",
     "actualProfit": "Actual profit",
     "invoicesSub": "{{count}} invoices",
@@ -129,7 +132,12 @@
     },
     "allStores": "All stores",
     "partnersShare": "Partners’ shares",
-    "shareOfProfit": "of actual profit"
+    "shareOfProfit": "of actual profit",
+    "expenses": "Expenses",
+    "expensesSub": "{{count}} expenses",
+    "expensesDeductedSub": "{{amount}} of it is deducted from profit",
+    "netProfit": "Net profit",
+    "netProfitSub": "Actual profit − expenses"
   },
   "categories": {
     "title": "Categories",
@@ -192,7 +200,20 @@
     "deleteNote": "The quantities will be removed from stock (rejected if some were sold).",
     "boughtBy": "Bought by",
     "paidByPartner": "{{name}} paid it from their own pocket (the partnership owes them this amount)",
-    "fromPocket": "Paid from own pocket"
+    "fromPocket": "Paid from own pocket",
+    "paidNow": "Paid to supplier now",
+    "paidToSupplier": "Paid to supplier",
+    "remainingToSupplier": "Owed to supplier",
+    "payments": "Payments",
+    "paymentsTitle": "Purchase #{{id}} payments — {{supplier}}",
+    "paymentsList": "Recorded payments",
+    "noPayments": "No payments yet",
+    "newPayment": "New payment to supplier",
+    "payAllRemaining": "All remaining ({{amount}})",
+    "paidDone": "Payment recorded",
+    "deletePaymentsWarning": "Recorded supplier payments ({{amount}}) will be deleted with it",
+    "bothPartners": "Both together",
+    "paidByBoth": "They paid out of pocket (each by their share)"
   },
   "sales": {
     "title": "Sales",
@@ -274,7 +295,12 @@
     "shopAddress": "Address",
     "saveShop": "Save shop details",
     "shopDesc": "Shop name, phone and address",
-    "open": "Open"
+    "open": "Open",
+    "appNameTitle": "App name",
+    "appNameDesc": "Current name: {{name}}",
+    "appName": "App name",
+    "appNameNote": "Shown in the sidebar, login screen, splash screen and window title. Leave it empty to use the default name.",
+    "appNameReset": "Default name"
   },
   "errors": {
     "UNKNOWN": "Unexpected error",
@@ -311,8 +337,7 @@
     "PARTNERS_REQUIRED": "Enter both partners’ names",
     "OWNER_REQUIRED": "Set the main store owner first (on the Partnerships page) so products from the other store are transferred in their name",
     "RETURN_EXCEEDS_SOURCE": "The quantity is more than the pieces from the other store in this invoice",
-    "TRANSFER_FROM_SALE": "This transfer belongs to a sale invoice: it’s edited and paid with the invoice",
-    "PAYMENT_FROM_SALE": "This payment belongs to a sale invoice: it updates automatically with the invoice payments",
+    "TRANSFER_FROM_SALE": "This transfer belongs to a sale invoice: edit or delete it from the invoice",
     "NOT_A_SALE_TRANSFER": "Payments can only be recorded on “sale at price” transfers",
     "TRANSFER_HAS_PAYMENTS": "This transfer has payments: its type, partner and direction can’t change. Delete the payments from partner accounts first.",
     "OWNER_NOT_PARTNER": "The main store owner must be one of the two partners",
@@ -341,7 +366,12 @@
     "PARTNER_INVOICE_PAID": "The partner already paid part of this transfer’s invoice: delete those payments from their statement in the main store first",
     "SALE_FROM_TRANSFER": "This invoice was created by a transfer to a partner: edit or delete it from the Transfers page",
     "REFUND_EXCEEDS": "The refunded amount is more than the customer’s money on this invoice",
-    "NO_CREDIT": "The customer has no credit"
+    "NO_CREDIT": "The customer has no credit",
+    "EXPENSE_TYPE_REQUIRED": "Enter the expense type",
+    "EXPENSE_NOT_FOUND": "Expense not found",
+    "PAID_BY_PARTNER": "A partner paid this invoice out of pocket; it has no supplier payments",
+    "PAYMENT_NOT_FOUND": "Payment not found",
+    "NAME_TOO_LONG": "The name is too long (40 characters max)"
   },
   "app": {
     "name": "Perfume Inventory"
@@ -560,7 +590,8 @@
     "refunds": "Money returned to the customer",
     "refundCash": "Refunded in cash",
     "refundCredit": "Used on invoice #{{id}}",
-    "noRefunds": "None"
+    "noRefunds": "None",
+    "rangeNote": "Totals count only invoices in this period, and only customers with invoices in it are shown."
   },
   "payment": {
     "status": "Payment status",
@@ -628,7 +659,7 @@
     "noPartner": "The partnership (split)",
     "nothing": "None",
     "fromSale": "Sale invoice #{{id}}",
-    "fromSaleNote": "Automatic transfers are edited and paid from the sale invoice.",
+    "fromSaleNote": "This transfer is edited and deleted with the sale invoice, but you pay it yourself here (it is not paid automatically with the invoice).",
     "payment": "Payment",
     "allPayments": "All statuses",
     "paidFull": "Paid",
@@ -695,7 +726,10 @@
       "owner": "For {{owner}}: capital (returned at liquidation) or sale at a price (the partnership owes them the price).",
       "partner": "{{partner}} buys the pieces from {{owner}}: they count as {{partner}}’s capital at the piece price, and a sale invoice for the same price is recorded on them in the main store ({{owner}} keeps the profit).",
       "partnership": "The pieces join the partnership’s products at cost: the partnership owes {{owner}} the cost, so each partner bears half, and the sale profit is split."
-    }
+    },
+    "unpay": "Mark as unpaid",
+    "unpayNote": "All payments on this transfer will be deleted and it goes back to unpaid (their partner settlements are deleted too).",
+    "removePaymentNote": "The amount goes back to the transfer remaining (its partner settlement is deleted)."
   },
   "warehouse": {
     "note": "Quantities and shipments, amounts in SAR. When a shipment arrives, record it as a purchase in the store that received it.",
@@ -777,7 +811,31 @@
     "transferAfter": "After the settlement",
     "transferType": "Between partners",
     "transferRoute": "{{from}} paid {{to}}",
-    "transferNote": "This money was paid between the partners outside the partnership’s money: what {{to}} is owed goes down, and what {{from}} is owed goes up by the same amount."
+    "transferNote": "This money was paid between the partners outside the partnership’s money: what {{to}} is owed goes down, and what {{from}} is owed goes up by the same amount.",
+    "statement": {
+      "open": "Details",
+      "title": "{{name}} — statement",
+      "howTitle": "Where the balance comes from",
+      "shareHow": "Partnership actual profit {{actual}} − expenses {{expenses}} = net profit {{net}}; their share is {{percent}}%",
+      "paidToHim": "Already paid to them",
+      "paidByHim": "They paid the partnership",
+      "balanceOwed": "The partnership still owes {{name}} {{amount}} (capital not included)",
+      "balanceOwes": "{{name}} owes the partnership {{amount}}",
+      "balanceZero": "Settled: nobody owes anybody",
+      "capitalNote": "Capital is returned separately on liquidation, so their total on liquidation = capital + balance = {{total}}",
+      "movements": "Movements behind each item (click an item to open it)",
+      "count": "{{count}} movements",
+      "none": "No movements",
+      "settledNote": "Positive = the partnership paid them, negative = they paid the partnership. Partner-to-partner settlements appear under “paid out of pocket”.",
+      "ref": {
+        "transfer": "Transfer #{{id}}",
+        "purchase": "Purchase #{{id}} — {{name}}",
+        "pair": "Settlement with partner {{name}}",
+        "payment": "Settlement",
+        "transfer_payment": "Transfer payment #{{id}}",
+        "joint_purchase": "Joint purchase #{{id}} — {{name}} (their share)"
+      }
+    }
   },
   "auth": {
     "password": "Password",
@@ -846,5 +904,28 @@
     "never": "No automatic backups yet",
     "historyAuto": "Automatic backup",
     "historyFailed": "Automatic backup failed"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "add": "Record expense",
+    "edit": "Edit expense",
+    "category": "Type",
+    "categoryHint": "Pick a type or type a new one",
+    "allCategories": "All types",
+    "amount": "Amount",
+    "profit": "Profit",
+    "deduct": "Deduct from profit",
+    "deductHint": "Deducted from net profit on the dashboard (and from partner shares in a partnership).",
+    "recordOnlyHint": "Record only: shown in expenses, does not affect profit.",
+    "deducted": "Deducted",
+    "recordOnly": "Record only",
+    "total": "Total expenses",
+    "count": "{{count}} expenses",
+    "deductedTotal": "Deducted from profit",
+    "deductedSub": "Counted in net profit",
+    "recordOnlyTotal": "Record only",
+    "recordOnlySub": "Not counted in profit",
+    "noTypes": "No types yet. Type a new one",
+    "createType": "Add type “{{name}}”"
   }
 }

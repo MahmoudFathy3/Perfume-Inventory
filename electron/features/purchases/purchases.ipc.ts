@@ -8,4 +8,6 @@ export function register(handle: HandleFn): void {
   handle('purchases:create', s.createPurchase)
   handle('purchases:update', s.updatePurchase)
   handle('purchases:remove', s.removePurchase)
+  handle('purchases:pay', s.payPurchase)
+  handle('purchases:remove-payment', s.removePurchasePayment)
 }

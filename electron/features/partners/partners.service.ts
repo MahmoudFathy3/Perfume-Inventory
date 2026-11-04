@@ -1,9 +1,9 @@
-import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales, PartnerTransferInput } from '@shared/types'
+import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales, PartnerStatement, PartnerTransferInput } from '@shared/types'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
 import { getDb } from '../../database/connection'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
 import * as customers from '../customers/customers.repository'
-import { lifetimeProfit } from '../dashboard/dashboard.service'
+import { lifetimeProfit, summary as dashboardSummary } from '../dashboard/dashboard.service'
 import * as workspaces from '../workspaces/workspaces.repository'
 import { linkPartnerCustomers } from '../workspaces/workspaces.service'
 import * as repo from './partners.repository'
@@ -45,6 +45,22 @@ export function ledger(): PartnerLedger {
     }
   })
   return { profit, accounts, payments: repo.findPayments(ws) }
+}
+
+/**
+ * كشف حساب شريك واحد بالتفصيل: نفس أرقام الجدول ومعاها حساب نصيب الربح خطوة بخطوة والحركات اللي كوّنت كل بند.
+ * مجموع كل بند في الحركات = نفس الرقم اللي في الجدول.
+ */
+export function statement({ partner_id }: { partner_id: number }): PartnerStatement {
+  const ws = currentPartnership()
+  const account = ledger().accounts.find((a) => a.partner.id === Number(partner_id))
+  if (!account) throw new AppError('PARTNER_NOT_FOUND')
+  const all = dashboardSummary()
+  return {
+    account,
+    profit: { actual: all.profit, expenses: all.expenses.deducted, net: all.net_profit, share_percent: account.partner.share_percent },
+    lines: repo.statementLines(ws, account.partner.id)
+  }
 }
 
 function storeAccountOf(customerId: number | null, accounts: Map<number, CustomerSummary>): PartnerAccount['store_account'] {
@@ -89,7 +105,6 @@ export const transferBetweenPartners = (input: PartnerTransferInput): number =>
   })()
 
 export function removePayment({ id }: { id: number }): void {
-  if (repo.isSalePayment(id)) throw new AppError('PAYMENT_FROM_SALE') // بتتشال لوحدها لو دفع الفاتورة اتغيّر
   repo.removePayment(id, currentPartnership())
 }
 

@@ -1,5 +1,6 @@
-import type { Condition, Page, PageParams, PriceType, Sale, SaleLine, SaleWithLines, ShippingPayer } from '@shared/types'
+import type { Condition, DateFilter, Page, PageParams, PriceType, Sale, SaleLine, SaleWithLines, ShippingPayer } from '@shared/types'
 import { execute, queryAll, queryOne } from '../../database/connection'
+import { dateClause } from '../../lib/dateRange'
 import { queryPage } from '../../lib/pagination'
 import { searchClause } from '../../lib/search'
 import { saleCredit, saleCreditUsed, salePaid, saleRefundedCash, saleRemaining, saleReturns } from '../../lib/salePaid'
@@ -43,14 +44,15 @@ const selectSales = () => `
   FROM sales s LEFT JOIN customers cu ON cu.id = s.customer_id LEFT JOIN workspace_partners wp ON wp.id = s.partner_id
   WHERE ${inWorkspace('s.workspace_id')}`
 
-type ListOptions = { search?: string; customerId?: number; partnerId?: number }
+type ListOptions = { search?: string; customerId?: number; partnerId?: number } & DateFilter
 
 function listQuery(opts: ListOptions) {
   const { where, params } = searchClause(['customer_name', 'notes'], opts.search, 'AND')
   const byCustomer = opts.customerId ? 'AND customer_id = @customerId' : ''
   const byPartner = opts.partnerId ? 'AND partner_id = @partnerId' : ''
-  const sql = `SELECT * FROM (${selectSales()}) WHERE 1 = 1 ${byCustomer} ${byPartner} ${where} ORDER BY sale_date DESC, id DESC`
-  return { sql, params: { ...params, customerId: opts.customerId, partnerId: opts.partnerId } }
+  const dates = dateClause('sale_date', opts)
+  const sql = `SELECT * FROM (${selectSales()}) WHERE 1 = 1 ${byCustomer} ${byPartner} ${dates.where} ${where} ORDER BY sale_date DESC, id DESC`
+  return { sql, params: { ...params, ...dates.params, customerId: opts.customerId, partnerId: opts.partnerId } }
 }
 
 /** كل الفواتير (للقوايم المنسدلة وكشف حساب العميل) */

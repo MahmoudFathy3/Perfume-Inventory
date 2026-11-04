@@ -6,6 +6,9 @@ import type { SettingKey } from '@shared/types'
 import { AppError } from '../../lib/errors'
 import * as s from './settings.service'
 
+/** أقصى طول لاسم البرنامج (بيتعرض في القايمة الجانبية وعنوان النافذة) */
+const APP_NAME_MAX = 40
+
 export function register(handle: HandleFn, { dialog, app, config, session }: IpcContext): void {
   handle('settings:get', s.get)
   // صاحب المخزون الفعلي بيتغيّر من workspaces:setOwner بس (علشان اسمه يتغيّر في الشراكات كمان)
@@ -15,6 +18,14 @@ export function register(handle: HandleFn, { dialog, app, config, session }: Ipc
   })
   handle('settings:all', s.getAll)
   handle('settings:getDbPath', () => config.read().dbPath)
+
+  // اسم البرنامج: القراءة متاحة قبل كلمة السر، والتغيير بعد الدخول بس (الفاضي = الاسم الافتراضي)
+  handle('app:name', () => config.read().appName)
+  handle('settings:setAppName', ({ name }: { name: string }) => {
+    const clean = String(name ?? '').trim()
+    if (clean.length > APP_NAME_MAX) throw new AppError('NAME_TOO_LONG')
+    config.write({ appName: clean })
+  })
 
   handle('settings:changeDbPath', async () => {
     const res = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })

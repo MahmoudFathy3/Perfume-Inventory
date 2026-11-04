@@ -1,4 +1,5 @@
 import { queryAll } from '../../../database/connection'
+import { dateClause } from '../../../lib/dateRange'
 import { salePaid, saleRemaining } from '../../../lib/salePaid'
 import { searchClause } from '../../../lib/search'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, scoped } from '../../../lib/workspace'
@@ -9,10 +10,12 @@ import { type Row, type SheetDef, col } from './sheet'
 const withPartner = (columns: ExportColumn[]) => () =>
   activeWorkspaceId() === PERSONAL_WORKSPACE_ID ? columns : columns.flatMap((c) => (c.key === 'customer' ? [c, col('partner', 'text', 18)] : [c]))
 
-/** البحث + فلتر الشريك (لو متحدد) */
-function salesWhere({ search, partnerId }: ExportParams) {
+/** البحث + فلتر الشريك والفترة (لو متحددين) */
+function salesWhere({ search, partnerId, ...range }: ExportParams) {
   const { where, params } = scoped('s.workspace_id', searchClause(['cu.name', 's.notes'], search))
-  return partnerId ? { where: `${where} AND s.partner_id = @partnerId`, params: { ...params, partnerId } } : { where, params }
+  const dates = dateClause('s.sale_date', range)
+  const byPartner = partnerId ? 'AND s.partner_id = @partnerId' : ''
+  return { where: `${where} ${byPartner} ${dates.where}`, params: { ...params, ...dates.params, partnerId } }
 }
 
 // ربح الفاتورة = ربح الأصناف - شحن على المحل

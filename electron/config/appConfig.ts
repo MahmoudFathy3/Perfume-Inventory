@@ -9,6 +9,11 @@ export interface ConfigData {
   autoBackupDir: string
   /** عدد النسخ التلقائية اللي بتتحفظ (الأقدم بيتمسح) */
   autoBackupKeep: number
+  /**
+   * اسم البرنامج اللي المستخدم اختاره من الإعدادات (الفاضي = الاسم الافتراضي).
+   * هنا مش في الداتا بيز علشان بيظهر قبل كلمة السر (شاشة البداية وشاشة الدخول).
+   */
+  appName: string
 }
 
 export interface AppConfig {
@@ -22,7 +27,7 @@ export interface AppConfig {
  */
 export function createConfig(userDataDir: string, dbFileName: string): AppConfig {
   const file = path.join(userDataDir, 'config.json')
-  const defaults: ConfigData = { dbPath: path.join(userDataDir, dbFileName), autoBackupEnabled: true, autoBackupDir: '', autoBackupKeep: 30 }
+  const defaults: ConfigData = { dbPath: path.join(userDataDir, dbFileName), autoBackupEnabled: true, autoBackupDir: '', autoBackupKeep: 30, appName: '' }
 
   function read(): ConfigData {
     try {

@@ -1,15 +1,15 @@
-import type { PageParams, ReturnInput } from '@shared/types'
+import type { DateFilter, PageParams, ReturnInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError, money, parseCondition, qty, round2, today } from '../../lib/errors'
 import * as itemStock from '../items/stock.repository'
 import * as paymentsRepo from '../payments/payments.repository'
 import { findById as findSale, isPartnerTransferSale } from '../sales/sales.repository'
-import { returnableToSource, returnToSaleSource, syncSalePayments, undoReturnToSaleSource } from '../transfers/transfers.sales'
+import { returnableToSource, returnToSaleSource, undoReturnToSaleSource } from '../transfers/transfers.sales'
 import * as repo from './returns.repository'
 
-export const listReturns = (p: { search?: string }) => repo.findAll(p)
-export const pageReturns = (p: { search?: string } & PageParams) => repo.findPage(p, p)
+export const listReturns = (p: { search?: string } & DateFilter) => repo.findAll(p)
+export const pageReturns = (p: { search?: string } & DateFilter & PageParams) => repo.findPage(p, p)
 export const getReturn = ({ id }: { id: number }) => repo.findById(id)
 
 /** مرتجع بيع: القطع بترجع للمخزن | مرتجع شراء: القطع بتخرج من المخزن */
@@ -73,7 +73,6 @@ export function createReturn(input: ReturnInput): number {
     repo.setTotal(returnId, round2(total))
     if (type === 'sale') {
       refundCash(invoiceId, returnId, input.refund, input.return_date || today())
-      syncSalePayments(invoiceId)
     }
     return returnId
   })()
@@ -123,6 +122,5 @@ export function removeReturn({ id }: { id: number }): void {
       }
     }
     repo.remove(id)
-    if (record.type === 'sale') syncSalePayments(invoiceId)
   })()
 }

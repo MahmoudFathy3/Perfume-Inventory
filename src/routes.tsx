@@ -8,6 +8,7 @@ import { PurchasesPage } from './features/purchases'
 import { ReturnsPage } from './features/returns'
 import { SalesPage } from './features/sales'
 import { SettingsPage } from './features/settings'
+import { ExpensesPage } from './features/expenses'
 import { TransfersPage } from './features/transfers'
 import { WorkspacesPage } from './features/workspaces'
 import { Layout } from './shared/layout/Layout'
@@ -27,7 +28,7 @@ export default function AppRoutes() {
         <Route path="customers/:id" element={<CustomerDetailsPage />} />
         <Route path="returns" element={<ReturnsPage />} />
         <Route path="transfers" element={<TransfersPage />} />
-        <Route path="partners" element={<PartnersPage />} />
+        <Route path="expenses" element={<ExpensesPage />} />        <Route path="partners" element={<PartnersPage />} />
         <Route path="workspaces" element={<WorkspacesPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

@@ -14,13 +14,17 @@ import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { useCategories } from '../../categories'
+import { DateRangeFilter, FilterGroup } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { useItems } from '../../items'
 import { useWorkspaces } from '../../workspaces'
+import { formatMoney } from '@/shared/utils/format'
 import { purchasesApi } from '../api/purchases.api'
+import { PurchasePaymentsModal } from '../components/PurchasePaymentsModal'
 import { usePurchases } from '../hooks/usePurchases'
 
 export default function PurchasesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const toast = useToast()
   const [search, setSearch] = useState('')
   const { active } = useWorkspaces()
@@ -29,7 +33,9 @@ export default function PurchasesPage() {
   const partnerId = partnerFilter ? Number(partnerFilter) : undefined
   const [form, setForm] = useState<{ purchase: PurchaseWithLines | null } | null>(null) // purchase = null: فاتورة جديدة
   const [invoice, setInvoice] = useState<InvoiceDocData | null>(null)
-  const pagination = usePurchases(search, partnerId)
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
+  const [paying, setPaying] = useState<number | null>(null) // فاتورة مفتوح دفعاتها
+  const pagination = usePurchases(search, partnerId, range)
   const { reload } = pagination
   const { items, reload: reloadItems } = useItems('')
   const { categories, reload: reloadCategories } = useCategories('')
@@ -59,23 +65,33 @@ export default function PurchasesPage() {
       toast.success(t('toast.deleted'))
       refresh()
     },
-    { getName: (row) => `#${row.id} — ${row.supplier_name}`, note: t('purchases.deleteNote') }
+    {
+      getName: (row) => `#${row.id} — ${row.supplier_name}`,
+      note: t('purchases.deleteNote'),
+      getWarning: (row) => (row.paid_by_partner !== 1 && row.paid > 0 ? t('purchases.deletePaymentsWarning', { amount: formatMoney(row.paid, i18n.language) }) : null)
+    }
   )
 
   return (
     <>
       <PageHeader title={t('purchases.title')}>
-        {partners.length > 0 && (
-          <Segmented
-            value={partnerFilter}
-            onChange={setPartnerFilter}
-            options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
-          />
-        )}
         <SearchBar value={search} onChange={setSearch} />
-        <ExportMenu target={{ dataset: 'purchases', search }} />
+        <ExportMenu target={{ dataset: 'purchases', search, partnerId, ...range }} />
         <Button variant="primary" icon={Plus} onClick={() => setForm({ purchase: null })}>{t('purchases.add')}</Button>
       </PageHeader>
+      <div className="mb-4">
+        <DateRangeFilter range={range} onChange={setRange}>
+          {partners.length > 0 && (
+            <FilterGroup label={t('partners.partner')}>
+              <Segmented
+                value={partnerFilter}
+                onChange={setPartnerFilter}
+                options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
+              />
+            </FilterGroup>
+          )}
+        </DateRangeFilter>
+      </div>
 
       <InvoicesTable
         kind="purchase"
@@ -87,6 +103,7 @@ export default function PurchasesPage() {
         }}
         onEdit={async (row) => setForm({ purchase: await open(row) })}
         onDelete={ask}
+        onPayments={(row) => setPaying(row.id)}
       />
       <Pagination {...pagination} />
 
@@ -96,6 +113,7 @@ export default function PurchasesPage() {
         </Modal>
       )}
       {invoice && <InvoiceViewer data={invoice} onClose={() => setInvoice(null)} />}
+      {paying !== null && <PurchasePaymentsModal purchaseId={paying} onClose={() => setPaying(null)} onChanged={reload} />}
       {dialog}
     </>
   )

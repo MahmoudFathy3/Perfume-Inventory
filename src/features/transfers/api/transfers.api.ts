@@ -15,6 +15,10 @@ export const transfersApi = {
   remove: (p: { id: number }) => invoke<void>('transfers:remove', p),
   /** دفعة على تحويل بيع بسعر (بتتسجل تسوية شريك) */
   pay: (p: TransferPaymentInput) => invoke<number>('transfers:pay', p),
+  /** حذف دفعة واحدة على التحويل */
+  removePayment: (p: { transfer_id: number; id: number }) => invoke<void>('transfers:remove-payment', p),
+  /** التحويل يرجع "لسه متدفعش" (كل دفعاته بتتحذف) */
+  unpay: (p: { transfer_id: number }) => invoke<void>('transfers:unpay', p),
   /** الفلوس اللي للمخزن النشط واللي عليه من تحويلات البيع */
   money: () => invoke<TransferMoney>('transfers:money')
 }

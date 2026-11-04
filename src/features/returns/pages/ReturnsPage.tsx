@@ -12,6 +12,8 @@ import { Button, Modal, PageHeader } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useQuery } from '@/shared/hooks/useQuery'
 import { useToast } from '@/shared/toast/ToastProvider'
+import { DateRangeFilter } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { purchasesApi } from '../../purchases'
 import { salesApi } from '../../sales'
 import { returnsApi } from '../api/returns.api'
@@ -25,7 +27,8 @@ export default function ReturnsPage() {
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState(false)
   const [invoice, setInvoice] = useState<InvoiceDocData | null>(null)
-  const pagination = useReturns(search)
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
+  const pagination = useReturns(search, range)
   const { reload } = pagination
   const sales = useQuery(() => salesApi.list({}), [])
   const purchases = useQuery(() => purchasesApi.list({}), [])
@@ -56,9 +59,12 @@ export default function ReturnsPage() {
     <>
       <PageHeader title={t('returns.title')}>
         <SearchBar value={search} onChange={setSearch} />
-        <ExportMenu target={{ dataset: 'returns', search }} />
+        <ExportMenu target={{ dataset: 'returns', search, ...range }} />
         <Button variant="primary" icon={Plus} onClick={() => setCreating(true)}>{t('returns.add')}</Button>
       </PageHeader>
+      <div className="mb-4">
+        <DateRangeFilter range={range} onChange={setRange} />
+      </div>
 
       <ReturnsTable rows={pagination.pageRows} onView={view} onDelete={ask} />
       <Pagination {...pagination} />

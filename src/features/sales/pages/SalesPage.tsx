@@ -16,6 +16,8 @@ import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney } from '@/shared/utils/format'
 import { customersApi, useCustomers } from '../../customers'
+import { DateRangeFilter, FilterGroup } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { useItems } from '../../items'
 import { useWorkspaces } from '../../workspaces'
 import { salesApi } from '../api/sales.api'
@@ -31,8 +33,9 @@ export default function SalesPage() {
   const [partnerFilter, setPartnerFilter] = useState('') // '' = كل الشركاء
   const [form, setForm] = useState<{ sale: SaleWithLines | null } | null>(null) // sale = null: فاتورة جديدة
   const [invoice, setInvoice] = useState<InvoiceDocData | null>(null)
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
   const partnerId = partnerFilter ? Number(partnerFilter) : undefined
-  const pagination = useSales(search, partnerId)
+  const pagination = useSales(search, partnerId, range)
   const { reload } = pagination
   const { items, reload: reloadItems } = useItems('')
   const { customers, reload: reloadCustomers } = useCustomers()
@@ -77,17 +80,23 @@ export default function SalesPage() {
   return (
     <>
       <PageHeader title={t('sales.title')}>
-        {partners.length > 0 && (
-          <Segmented
-            value={partnerFilter}
-            onChange={setPartnerFilter}
-            options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
-          />
-        )}
         <SearchBar value={search} onChange={setSearch} />
-        <ExportMenu target={{ dataset: 'sales', search, partnerId }} />
+        <ExportMenu target={{ dataset: 'sales', search, partnerId, ...range }} />
         <Button variant="primary" icon={Plus} onClick={() => setForm({ sale: null })}>{t('sales.add')}</Button>
       </PageHeader>
+      <div className="mb-4">
+        <DateRangeFilter range={range} onChange={setRange}>
+          {partners.length > 0 && (
+            <FilterGroup label={t('sales.soldBy')}>
+              <Segmented
+                value={partnerFilter}
+                onChange={setPartnerFilter}
+                options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
+              />
+            </FilterGroup>
+          )}
+        </DateRangeFilter>
+      </div>
 
       <InvoicesTable
         kind="sale"

@@ -2,6 +2,8 @@ import { app, BrowserWindow } from 'electron'
 import logoSvg from '../../resources/icon.svg?raw'
 import iconPath from '../../resources/icon.png?asset'
 import { APP_NAME, APP_NAME_AR, SPLASH_DURATION_MS, SPLASH_WINDOW } from './constants'
+import { createConfig } from '../config/appConfig'
+import { ENV } from '../config/env'
 import { buildSplashHtml } from './splash.html'
 
 export interface SplashHandle {
@@ -29,7 +31,9 @@ export function createSplashWindow(): SplashHandle {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: false }
   })
 
-  const html = buildSplashHtml({ name: APP_NAME, subtitle: APP_NAME_AR, version: app.getVersion(), logoSvg, durationMs: SPLASH_DURATION_MS })
+  // الاسم اللي المستخدم اختاره من الإعدادات بيظهر مكان الاسم العربي الافتراضي
+  const custom = createConfig(app.getPath('userData'), ENV.dbFileName).read().appName
+  const html = buildSplashHtml({ name: APP_NAME, subtitle: custom || APP_NAME_AR, version: app.getVersion(), logoSvg, durationMs: SPLASH_DURATION_MS })
   void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
 
   const shown = new Promise<void>((resolve) => {

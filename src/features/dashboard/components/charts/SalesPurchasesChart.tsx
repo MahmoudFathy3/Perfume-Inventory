@@ -8,13 +8,15 @@ import { CHART_COLORS as C, compactNumber, periodLabel } from './chartTheme'
 
 export function SalesPurchasesChart({ series }: { series: ChartPoint[] }) {
   const { t, i18n } = useTranslation()
+  // عمود البيع لمخازن تانية بيظهر بس لو فيه تحويلات بيع في الفترة
+  const hasTransfers = series.some((p) => p.transfer_sales > 0)
   const money = (v: number) => formatMoney(v, i18n.language)
   return (
     <ChartCard title={t('dashboard.chartSalesPurchases')} empty={series.length === 0}>
       <ResponsiveContainer width="100%" height={290}>
         <BarChart data={series} barGap={3}>
           <defs>
-            {(['sales', 'purchases'] as const).map((key) => (
+            {(['sales', 'transfer_sales', 'purchases'] as const).map((key) => (
               <linearGradient key={key} id={`g-${key}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={C[key]} stopOpacity={1} />
                 <stop offset="100%" stopColor={C[key]} stopOpacity={0.55} />
@@ -27,6 +29,7 @@ export function SalesPurchasesChart({ series }: { series: ChartPoint[] }) {
           <Tooltip cursor={{ fill: 'rgba(15,23,42,.04)' }} content={<ChartTooltip format={money} titleFormat={periodLabel} />} />
           <Legend iconType="circle" />
           <Bar dataKey="sales" name={t('dashboard.sales')} fill="url(#g-sales)" radius={[6, 6, 0, 0]} maxBarSize={28} />
+          {hasTransfers && <Bar dataKey="transfer_sales" name={t('dashboard.transferSales')} fill="url(#g-transfer_sales)" radius={[6, 6, 0, 0]} maxBarSize={28} />}
           <Bar dataKey="purchases" name={t('dashboard.purchases')} fill="url(#g-purchases)" radius={[6, 6, 0, 0]} maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>

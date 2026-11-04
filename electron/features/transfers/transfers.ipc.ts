@@ -9,6 +9,8 @@ export function register(handle: HandleFn): void {
   handle('transfers:create', s.createTransfer)
   handle('transfers:update', s.updateTransfer)
   handle('transfers:pay', s.payTransfer)
+  handle('transfers:remove-payment', s.removeTransferPayment)
+  handle('transfers:unpay', s.unpayTransfer)
   handle('transfers:money', s.transferMoney)
   handle('transfers:remove', s.removeTransfer)
 }
