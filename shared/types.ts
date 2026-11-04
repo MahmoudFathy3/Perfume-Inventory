@@ -735,6 +735,8 @@ export interface ChartPoint {
   period: string
   sales: number
   purchases: number
+  /** بيع لمخازن تانية بسعر (تحويلات) */
+  transfer_sales: number
   profit: number
 }
 
@@ -771,6 +773,8 @@ export interface DashboardSummary {
     returns: number
     net_products: number
   }
+  /** القطع اللي اتباعت لمخازن تانية بسعر في الفترة (تحويلات، مش فواتير بيع)، واللي اتدفع منها */
+  transfer_sales: { count: number; pieces: number; total: number; paid: number; remaining: number }
   today: { count: number; total: number }
   /** مستحقات عند العملاء (الحالي، مش بيتأثر بالفلتر) */
   receivables: number

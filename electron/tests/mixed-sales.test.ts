@@ -3,6 +3,7 @@ import test from 'node:test'
 import type { SaleInput } from '@shared/types'
 import { getDb } from '../database/connection'
 import * as categories from '../features/categories/categories.service'
+import * as dashboard from '../features/dashboard/dashboard.service'
 import * as items from '../features/items/items.service'
 import * as partners from '../features/partners/partners.service'
 import * as payments from '../features/payments/payments.service'
@@ -66,26 +67,40 @@ test('فاتورة واحدة: العود بيتحوّل تلقائي بسعر �
   assert.deepEqual(lineProfit(id).map((l) => l.profit), [200, 0], 'ربح الشراكة في العود صفر')
 
   const [t] = inShop(() => saleTransfers(id))
-  assert.deepEqual([t.kind, t.from_workspace_id, t.partner_id, t.total_price, t.total_cost, t.paid], ['sale', PERSONAL, owner, 300, 100, 300], 'كاش = مدفوعة كلها')
+  assert.deepEqual([t.kind, t.from_workspace_id, t.partner_id, t.total_price, t.total_cost, t.paid], ['sale', PERSONAL, owner, 300, 100, 0], 'الفاتورة كاش والتحويل لسه متدفعش')
   inShop(() => {
     const a = partners.ledger().accounts.find((x) => x.partner.id === owner)!
-    assert.deepEqual([a.sold, a.settled], [300, 300])
+    assert.deepEqual([a.sold, a.settled], [300, 0])
   })
 })
 
-test('الدفع: التحويل بيتعلّم مدفوع لما الفاتورة تتدفع كلها بس', () => {
+test('الدفع: دفع الفاتورة مش بيدفع التحويل، والمستخدم بيدفعه ويرجّعه بنفسه', () => {
   const customer = inShop(() => {
     const db = getDb()
     return Number(db.prepare('INSERT INTO customers(workspace_id, name) VALUES (?, ?)').run(shop, 'عميل').lastInsertRowid)
   })
   const id = inShop(() => sales.createSale(mixed({ customer_id: customer, paid: 200 })))
-  const paidOf = () => inShop(() => saleTransfers(id)[0].paid)
-  assert.equal(paidOf(), 0)
+  const transfer = () => inShop(() => saleTransfers(id)[0])
+  inShop(() => payments.collect({ sale_id: id, amount: 400 }))
+  assert.equal(transfer().paid, 0, 'الفاتورة اتدفعت كلها والتحويل لسه')
 
-  const [paymentId] = inShop(() => payments.collect({ sale_id: id, amount: 400 }))
-  assert.equal(paidOf(), 300)
-  inShop(() => payments.removePayment({ id: paymentId }))
-  assert.equal(paidOf(), 0, 'حذف الدفعة رجّع التحويل متدفعش')
+  // دفعتين بإيده، وحذف واحدة
+  transfers.payTransfer({ transfer_id: transfer().id, amount: 100 })
+  transfers.payTransfer({ transfer_id: transfer().id, amount: 200 })
+  assert.equal(transfer().paid, 300)
+  assert.equal(err(() => transfers.payTransfer({ transfer_id: transfer().id, amount: 1 })), 'PAYMENT_EXCEEDS_REMAINING')
+  const [first] = transfers.getTransfer({ id: transfer().id }).payments
+  transfers.removeTransferPayment({ transfer_id: transfer().id, id: first.id })
+  assert.equal(transfer().paid, 200)
+  assert.equal(err(() => transfers.removeTransferPayment({ transfer_id: transfer().id, id: first.id })), 'PAYMENT_NOT_FOUND')
+
+  // تعديل الفاتورة بيرجّع الدفعات على التحويل الجديد
+  inShop(() => sales.updateSale({ id, ...mixed({ customer_id: customer }) }))
+  assert.equal(transfer().paid, 200)
+
+  // يرجع "لسه متدفعش"
+  transfers.unpayTransfer({ transfer_id: transfer().id })
+  assert.equal(transfer().paid, 0)
 })
 
 test('سعر تحويل مختلف: الفرق ربح للشراكة', () => {
@@ -150,15 +165,59 @@ test('مرتجع للمصدر لمنتج مش جاي من مخزن تاني بي
   assert.equal(err(() => inShop(() => returns.createReturn({ type: 'sale', sale_id: id, items: [{ item_id: musk, condition: 'new', quantity: 1, unit_price: 150, to_source: true }] }))), 'RETURN_EXCEEDS_SOURCE')
 })
 
-test('التحويل التلقائي بيتعدّل ويتدفع مع الفاتورة بس', () => {
+test('التحويل التلقائي بيتعدّل ويتحذف مع الفاتورة بس، بس دفعه بإيد المستخدم', () => {
   const id = inShop(() => sales.createSale(mixed()))
   const t = inShop(() => saleTransfers(id))[0]
   assert.equal(err(() => transfers.removeTransfer({ id: t.id })), 'TRANSFER_FROM_SALE')
-  assert.equal(err(() => transfers.payTransfer({ transfer_id: t.id, amount: 1 })), 'TRANSFER_FROM_SALE')
   assert.equal(
     err(() => transfers.updateTransfer({ id: t.id, from_workspace_id: PERSONAL, to_workspace_id: shop, kind: 'half', items: [{ item_id: oud, condition: 'new', quantity: 1 }] })),
     'TRANSFER_FROM_SALE'
   )
+  // دفعته (والتسوية بتاعتها في حسابات الشركاء) بتتعمل وتتحذف عادي
+  transfers.payTransfer({ transfer_id: t.id, amount: 300 })
   const payment = inShop(() => partners.ledger().payments.find((p) => p.transfer_id === t.id))!
-  assert.equal(err(() => inShop(() => partners.removePayment({ id: payment.id }))), 'PAYMENT_FROM_SALE')
+  inShop(() => partners.removePayment({ id: payment.id }))
+  assert.equal(inShop(() => saleTransfers(id))[0].paid, 0)
+})
+
+test('ربح القطع للمخزون الفعلي بيتسجل لما الشراكة تدفع بس، بنسبة المدفوع وبتاريخه', () => {
+  const profit = (from: string | null = null, to: string | null = null) => dashboard.summary({ from, to }).profit
+  const before = profit()
+  const id = inShop(() => sales.createSale(mixed())) // عود: تكلفة 100 واتحوّل بـ 300 → ربح 200
+  const t = inShop(() => saleTransfers(id))[0]
+  assert.equal(profit(), before, 'لسه متدفعش: مفيش ربح')
+
+  transfers.payTransfer({ transfer_id: t.id, amount: 150, payment_date: '2030-01-10' }) // النص
+  assert.equal(profit(), before + 100)
+  assert.equal(profit('2030-01-10', '2030-01-10'), 100, 'بتاريخ الدفعة')
+  inShop(() => assert.equal(dashboard.summary({ from: '2030-01-10', to: '2030-01-10' }).profit, 0, 'الشراكة ملهاش ربح منه'))
+
+  transfers.payTransfer({ transfer_id: t.id, amount: 150, payment_date: '2030-02-01' })
+  assert.equal(profit(), before + 200)
+
+  transfers.unpayTransfer({ transfer_id: t.id })
+  assert.equal(profit(), before, 'رجع متدفعش: الربح اتشال')
+})
+
+test('رئيسية المخزون الفعلي بتورّي القطع اللي اتباعت للشراكة (من غير ما تتحسب فواتير بيع)', () => {
+  const summary = (from: string | null = null, to: string | null = null) => dashboard.summary({ from, to })
+  const before = summary()
+  const shopBefore = inShop(() => summary().transfer_sales.count)
+  const id = inShop(() => sales.createSale(mixed()))
+  const t = inShop(() => saleTransfers(id))[0]
+  const day = t.transfer_date
+
+  const after = summary()
+  assert.equal(after.transfer_sales.count, before.transfer_sales.count + 1)
+  assert.equal(after.transfer_sales.total, before.transfer_sales.total + t.total_price)
+  assert.equal(after.sales.count, before.sales.count, 'مش فاتورة بيع في الفعلي')
+  const point = after.charts.series.find((p) => p.period === day)
+  assert.ok(point && point.transfer_sales >= t.total_price, 'في الرسم بتاريخ التحويل')
+
+  transfers.payTransfer({ transfer_id: t.id, amount: 100, payment_date: day })
+  const paid = summary(day, day).transfer_sales
+  assert.ok(paid.paid >= 100)
+  assert.equal(paid.remaining, Math.round((paid.total - paid.paid) * 100) / 100)
+
+  inShop(() => assert.equal(summary().transfer_sales.count, shopBefore, 'الشراكة مباعتش لحد'))
 })

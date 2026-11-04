@@ -2,7 +2,7 @@
 import { queryOne } from '../../../database/connection'
 import { inWorkspace } from '../../../lib/workspace'
 import type { Range, Totals } from './shared'
-import { range, CUSTOMER_SHIPPING, SHOP_SHIPPING, RETURN_LOSS } from './shared'
+import { range, CUSTOMER_SHIPPING, SHOP_SHIPPING, RETURN_LOSS, TRANSFER_PROFIT, TRANSFER_PROFIT_FROM } from './shared'
 
 /** مصروفات الفترة (إيجار، رواتب...): الكل، واللي بيتخصم من الربح */
 export const expenses = (p: Range) =>
@@ -58,6 +58,14 @@ export const grossProfit = (p: Range) =>
     { ...p }
   )!.profit
 
+/** ربح القطع اللي المخزن النشط باعها لمخزن تاني بسعر (اللي اتحصّل منه بس، بتاريخ التحصيل) */
+export const transferProfit = (p: Range) =>
+  queryOne<{ profit: number }>(
+    `SELECT COALESCE(SUM(${TRANSFER_PROFIT}), 0) AS profit
+     FROM ${TRANSFER_PROFIT_FROM} AND ${inWorkspace('t.from_workspace_id')} AND ${range('pp.payment_date')}`,
+    { ...p }
+  )!.profit
+
 export const returnsLoss = (p: Range) =>
   queryOne<{ loss: number }>(
     `SELECT COALESCE(SUM(${RETURN_LOSS}), 0) AS loss
@@ -65,3 +73,17 @@ export const returnsLoss = (p: Range) =>
      WHERE ${inWorkspace('r.workspace_id')} AND ${range('r.return_date')}`,
     { ...p }
   )!.loss
+
+/**
+ * القطع اللي المخزن النشط باعها لمخازن تانية بسعر في الفترة (بتاريخ التحويل):
+ * عدد التحويلات والقطع وإجمالي السعر، واللي اتدفع منها لحد دلوقتي
+ */
+export const transferSales = (p: Range) =>
+  queryOne<{ count: number; pieces: number; total: number; paid: number }>(
+    `SELECT COUNT(*) AS count,
+            COALESCE(SUM((SELECT SUM(quantity - returned_quantity) FROM transfer_items WHERE transfer_id = t.id)), 0) AS pieces,
+            COALESCE(SUM(t.total_price), 0) AS total,
+            COALESCE(SUM((SELECT SUM(ABS(amount)) FROM partner_payments WHERE transfer_id = t.id)), 0) AS paid
+     FROM transfers t WHERE t.kind = 'sale' AND t.total_price > 0 AND ${inWorkspace('t.from_workspace_id')} AND ${range('t.transfer_date')}`,
+    { ...p }
+  )!

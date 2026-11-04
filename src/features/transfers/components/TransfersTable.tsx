@@ -65,7 +65,7 @@ export function TransfersTable({ rows, nameOf, activeId, onView, onEdit, onPay, 
       header: '',
       cell: (r) => (
         <RowActions>
-          {transferRemaining(r) > 0 && !r.sale_id && (
+          {transferRemaining(r) > 0 && (
             <Button size="sm" variant="primary" icon={HandCoins} onClick={() => onPay(r)}>{t(r.from_workspace_id === activeId ? 'transfers.collect' : 'transfers.payOut')}</Button>
           )}
           <Button size="sm" icon={Eye} onClick={() => onView(r)}>{t('common.view')}</Button>

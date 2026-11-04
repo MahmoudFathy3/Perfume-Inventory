@@ -105,7 +105,6 @@ export const transferBetweenPartners = (input: PartnerTransferInput): number =>
   })()
 
 export function removePayment({ id }: { id: number }): void {
-  if (repo.isSalePayment(id)) throw new AppError('PAYMENT_FROM_SALE') // بتتشال لوحدها لو دفع الفاتورة اتغيّر
   repo.removePayment(id, currentPartnership())
 }
 

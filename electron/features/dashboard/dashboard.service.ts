@@ -5,8 +5,12 @@ import { listWorkspaces } from '../workspaces/workspaces.service'
 import { buildPeriods, previousRange } from './dashboard.periods'
 import * as repo from './dashboard.repository'
 
-/** الربح الفعلي للفترة = ربح الأصناف - ربح ضاع بمرتجعات البيع - شحن بيع على المحل */
-const profitOf = (range: repo.Range, shopShipping: number): number => repo.grossProfit(range) - repo.returnsLoss(range) - shopShipping
+/**
+ * الربح الفعلي للفترة = ربح الأصناف + ربح التحويلات اللي اتحصّلت (القطع اللي اتباعت لمخزن تاني بسعر)
+ * − ربح ضاع بمرتجعات البيع − شحن بيع على المحل
+ */
+const profitOf = (range: repo.Range, shopShipping: number): number =>
+  repo.grossProfit(range) + repo.transferProfit(range) - repo.returnsLoss(range) - shopShipping
 
 const toMap = (rows: { period: string; value: number | null }[]) => Object.fromEntries(rows.map((r) => [r.period, r.value || 0]))
 
@@ -47,6 +51,7 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
   const saleReturns = repo.returnsOf('sale', p)
   const purchaseReturns = repo.returnsOf('purchase', p)
   const expenses = repo.expenses(p)
+  const transferSales = repo.transferSales(p)
   const profit = profitOf(p, sales.shop_shipping)
   const bounds = repo.dataRange()
   const { mode, periods } = buildPeriods(p.from || bounds.min, p.to || bounds.max)
@@ -55,6 +60,8 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
   const salesMap = toMap(repo.salesBy(p, len))
   const purchasesMap = toMap(repo.purchasesBy(p, len))
   const profitMap = toMap(repo.profitBy(p, len))
+  const transferProfitMap = toMap(repo.transferProfitBy(p, len))
+  const transferSalesMap = toMap(repo.transferSalesBy(p, len))
   const lossMap = toMap(repo.lossBy(p, len))
   const shopShippingMap = toMap(repo.shopShippingBy(p, len))
 
@@ -89,6 +96,13 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
       returns: round2(saleReturns.total),
       net_products: round2(sales.products - saleReturns.total)
     },
+    transfer_sales: {
+      count: transferSales.count,
+      pieces: transferSales.pieces,
+      total: round2(transferSales.total),
+      paid: round2(transferSales.paid),
+      remaining: round2(Math.max(0, transferSales.total - transferSales.paid))
+    },
     today: { count: todaySales.count, total: round2(todaySales.total) },
     receivables: round2(repo.receivables()),
     collected: round2(repo.collected(p)),
@@ -103,7 +117,8 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
         period,
         sales: round2(salesMap[period] || 0),
         purchases: round2(purchasesMap[period] || 0),
-        profit: round2((profitMap[period] || 0) - (lossMap[period] || 0) - (shopShippingMap[period] || 0))
+        transfer_sales: round2(transferSalesMap[period] || 0),
+        profit: round2((profitMap[period] || 0) + (transferProfitMap[period] || 0) - (lossMap[period] || 0) - (shopShippingMap[period] || 0))
       })),
       top: repo.topProducts(p),
       stock: { new: stock.new_pieces, damaged: stock.damaged_pieces }

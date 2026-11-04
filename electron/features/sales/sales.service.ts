@@ -2,7 +2,7 @@ import type { DateFilter, PageParams, SaleInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, money, round2 } from '../../lib/errors'
 import { activeWorkspaceId } from '../../lib/workspace'
-import { removeSaleTransfers, sourcePrice, syncSalePayments, transferForSale } from '../transfers/transfers.sales'
+import { removeSaleTransfers, restoreSaleTransferPayments, saveSaleTransferPayments, sourcePrice, transferForSale } from '../transfers/transfers.sales'
 import * as payments from '../payments/payments.repository'
 import { useCredit } from '../payments/payments.service'
 import * as repo from './sales.repository'
@@ -80,7 +80,6 @@ export function createSale(input: SaleInput): number {
     if (paid > due + EPS) throw new AppError('PAID_EXCEEDS_TOTAL')
     assertCustomerForDebt(c, due, paid)
     if (paid > 0) payments.insert(id, paid, c.date, null)
-    syncSalePayments(id)
     return id
   })()
 }
@@ -100,11 +99,14 @@ export function updateSale({ id, ...input }: SaleInput & { id: number }): void {
     if (repo.returnsCount(id) > 0) throw new AppError('HAS_RETURNS')
 
     restoreLines(id)
-    removeSaleTransfers(id) // القطع اللي كانت جاية من مخزن تاني بترجع له، وبتتحوّل تاني بالسطور الجديدة
+    // القطع اللي كانت جاية من مخزن تاني بترجع له، وبتتحوّل تاني بالسطور الجديدة (ودفعات التحويلات بترجع عليها)
+    const transferPayments = saveSaleTransferPayments(id)
+    removeSaleTransfers(id)
     repo.deleteLines(id)
     repo.updateHeader(id, header(c, 0))
     const total = invoiceTotal(c, sellLines(id, bringForeignLines(id, c), true))
     repo.setTotal(id, total)
+    restoreSaleTransferPayments(id, transferPayments)
 
     if (!c.customerId && old.customer_id === null) {
       payments.removeBySale(id)
@@ -114,7 +116,6 @@ export function updateSale({ id, ...input }: SaleInput & { id: number }): void {
       if (paid > total + EPS) throw new AppError('TOTAL_BELOW_PAID')
       assertCustomerForDebt(c, total, paid)
     }
-    syncSalePayments(id)
   })()
 }
 

@@ -109,10 +109,6 @@ export const findTransferPayments = (transferId: number) =>
 
 export const removeTransferPayments = (transferId: number) => void execute('DELETE FROM partner_payments WHERE transfer_id = ?', [transferId])
 
-/** هل الدفعة على تحويل تلقائي لفاتورة بيع؟ (دي بتمشي مع الفاتورة ومبتتحذفش لوحدها) */
-export const isSalePayment = (id: number): boolean =>
-  queryAll('SELECT 1 FROM partner_payments pp JOIN transfers t ON t.id = pp.transfer_id WHERE pp.id = ? AND t.sale_id IS NOT NULL', [id]).length > 0
-
 /** حذف تسوية. لو تبع تسوية بين الشريكين، الدفعتين بيتحذفوا مع بعض */
 export const removePayment = (id: number, workspaceId: number) =>
   void execute(
