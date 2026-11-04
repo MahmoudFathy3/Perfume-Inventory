@@ -1,23 +1,26 @@
 import type { DateFilter, ExpenseInput, PageParams } from '@shared/types'
 import { AppError, positiveAmount, today } from '../../lib/errors'
+import { assertExpenseOpen, assertOpen } from '../../lib/monthLock'
 import * as repo from './expenses.repository'
 
 type ExpensesFilter = { search?: string; category?: string } & DateFilter
 
 /**
  * فحص المصروف: النوع مطلوب (ولو مكتوب قبل كده بكتابة تانية بناخد القديمة علشان ميتكررش)،
- * والمبلغ أكبر من صفر، والخصم من الربح افتراضي.
+ * والمبلغ أكبر من صفر، والخصم من الربح افتراضي. وتاريخه مينفعش يكون في شهر مقفول.
  */
 function clean(input: ExpenseInput): repo.ExpenseRow {
   const typed = String(input.category ?? '').trim()
   if (!typed) throw new AppError('EXPENSE_TYPE_REQUIRED')
-  return {
+  const row = {
     expense_date: input.expense_date || today(),
     category: repo.existingCategory(typed) ?? typed,
     amount: positiveAmount(input.amount),
     deduct: input.deduct === false ? 0 : 1,
     notes: input.notes?.trim() || null
   }
+  assertOpen(row.expense_date)
+  return row
 }
 
 export const pageExpenses = (p: ExpensesFilter & PageParams) => repo.findPage(p, p)
@@ -28,7 +31,11 @@ export const createExpense = (input: ExpenseInput): number => repo.insert(clean(
 
 export function updateExpense({ id, ...input }: ExpenseInput & { id: number }): void {
   if (!repo.findById(id)) throw new AppError('EXPENSE_NOT_FOUND')
+  assertExpenseOpen(id)
   repo.update(id, clean(input))
 }
 
-export const removeExpense = ({ id }: { id: number }): void => repo.remove(id)
+export function removeExpense({ id }: { id: number }): void {
+  assertExpenseOpen(id)
+  repo.remove(id)
+}

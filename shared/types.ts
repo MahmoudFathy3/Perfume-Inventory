@@ -303,6 +303,67 @@ export interface PartnerStatement {
   lines: PartnerStatementLines
 }
 
+/**
+ * سطر شريك في تقفيل الشهر. الباقي آخر الشهر = الباقي أول الشهر + نصيبه من ربح الشهر + اللي باعه للشراكة
+ * + اللي دفعه من جيبه − اللي اتسوّى في الشهر (نفس معادلة حسابات الشركاء بس محصورة في الشهر)
+ */
+export interface PartnerClosingRow {
+  /** في الشهر المقفول: الاسم والنسبة وقت التقفيل */
+  partner: Pick<WorkspacePartner, 'id' | 'name' | 'share_percent'>
+  /** الباقي له من الشهور اللي قبل (موجب = الشراكة مدينة له) */
+  opening: number
+  profit_share: number
+  sold: number
+  paid_out: number
+  /** اللي اتسوّى في الشهر (موجب = اتدفع له / سحبه) */
+  settled: number
+  /** الباقي له آخر الشهر */
+  closing: number
+  /** رأس ماله آخر الشهر (بيرجع له في التصفية، مش داخل في الباقي) */
+  capital: number
+}
+
+/** تقفيل شهر في الشراكة: أرقام الشهر وحساب كل شريك فيه */
+export interface MonthlyClosing {
+  /** YYYY-MM */
+  month: string
+  from: string
+  to: string
+  sales: { count: number; total: number; returns: number }
+  /** الربح الفعلي للشهر قبل المصروفات */
+  profit: number
+  /** المصروفات اللي بتتخصم من الربح */
+  expenses: number
+  net_profit: number
+  rows: PartnerClosingRow[]
+  /** لو الشهر مقفول: الأرقام دي محفوظة من وقت التقفيل (مش بتتحسب من جديد) */
+  closed: { closed_at: string; notes: string | null } | null
+  /** اللي لسه عليه فلوس في الشهر (لازم كله يتدفع قبل التقفيل) */
+  unpaid: ClosingUnpaid[]
+  /** الشهر خلص (آخر يوم فيه النهارده أو قبل كده)؟ مينفعش تقفّل شهر لسه ما خلصش */
+  ended: boolean
+}
+
+/** حاجة في الشهر لسه عليها فلوس: فاتورة بيع / فاتورة شراء / تحويل بيع بسعر */
+export interface ClosingUnpaid {
+  type: 'sale' | 'purchase' | 'transfer'
+  id: number
+  date: string
+  /** العميل / المورد / الشريك */
+  party: string | null
+  remaining: number
+}
+
+/** شهر مقفول في الشراكة: أرقامه وحساب كل شريك فيه (زي ما اتحفظت وقت التقفيل) */
+export interface ClosedMonth {
+  month: string
+  closed_at: string
+  notes: string | null
+  sales_total: number
+  net_profit: number
+  rows: PartnerClosingRow[]
+}
+
 /** مبيعات شريك واحد في الفترة (الفواتير اللي هو عملها) */
 export interface PartnerSales {
   /** null = فواتير قديمة من غير شريك */
@@ -824,7 +885,9 @@ export interface DataTransfer {
 }
 
 // ---------- التصدير والطباعة ----------
-export type ExportDataset = 'categories' | 'items' | 'purchases' | 'sales' | 'returns' | 'customers' | 'movements'
+export type ExportDataset =
+  | 'categories' | 'items' | 'purchases' | 'sales' | 'returns' | 'customers' | 'movements'
+  | 'expenses' | 'warehouse' | 'transfers' | 'partner_closing'
 export type ExportFormat = 'xlsx' | 'csv'
 export type CellType = 'text' | 'number' | 'money' | 'date' | 'enum'
 export type CellValue = string | number | null
@@ -882,6 +945,14 @@ export interface ExportParams extends DateFilter {
   itemId?: number
   /** فواتير شريك واحد بس (مبيعات الشراكة) */
   partnerId?: number
+  /** نوع المصروف (المصروفات) */
+  category?: string
+  /** فلاتر التحويلات */
+  kind?: TransferKind | ''
+  direction?: 'out' | 'in' | ''
+  payment?: 'paid' | 'unpaid' | ''
+  /** الشهر YYYY-MM (تقفيل الشهر) */
+  month?: string
 }
 
 /** الترجمات اللي الواجهة بتبعتها للـ backend علشان عناوين الأعمدة وقيم الحالات تتكتب بلغة التطبيق */

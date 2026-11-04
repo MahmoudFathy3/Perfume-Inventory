@@ -1,6 +1,7 @@
 import type { CollectInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
+import { assertOpen, assertSaleOpen, assertSalePaymentOpen } from '../../lib/monthLock'
 import * as salesRepo from '../sales/sales.repository'
 import * as repo from './payments.repository'
 
@@ -22,11 +23,13 @@ export function collect(input: CollectInput): number[] {
   const amount = positiveAmount(input.amount)
   const date = input.payment_date || today()
   const notes = String(input.notes ?? '').trim() || null
+  assertOpen(date)
 
   return getDb().transaction((): number[] => {
     if (input.sale_id) {
       const sale = salesRepo.findById(input.sale_id)
       if (!sale) throw new AppError('SALE_NOT_FOUND')
+      assertSaleOpen(sale.id)
       if (sale.remaining <= 0) throw new AppError('NOTHING_DUE')
       if (amount > sale.remaining + EPS) throw new AppError('PAYMENT_EXCEEDS_REMAINING')
       const id = repo.insert(sale.id, amount, date, notes)
@@ -68,6 +71,7 @@ export function useCredit(customerId: number, amount: number, date: string, only
   if (available <= EPS) throw new AppError('NO_CREDIT')
   if (due <= EPS) throw new AppError('NOTHING_DUE')
   if (amount > Math.min(available, due) + EPS) throw new AppError('PAYMENT_EXCEEDS_REMAINING')
+  assertOpen(date)
 
   const ids: number[] = []
   let left = amount
@@ -75,6 +79,8 @@ export function useCredit(customerId: number, amount: number, date: string, only
     for (const credit of credits) {
       const part = round2(Math.min(left, debt.left, credit.left))
       if (part <= 0) continue
+      // الرصيد ممكن يكون من فاتورة في شهر مقفول (عادي: الزيادة مش داخلة في أرقام الشهر)، بس الفاتورة اللي بتتدفع لازم تكون مفتوحة
+      assertSaleOpen(debt.id)
       const paymentId = repo.insert(debt.id, part, date, null, true)
       repo.insertRefund({ sale_id: credit.id, amount: part, date, kind: 'credit', payment_id: paymentId })
       ids.push(paymentId)
@@ -87,4 +93,7 @@ export function useCredit(customerId: number, amount: number, date: string, only
 }
 
 /** حذف دفعة اتسجلت بالغلط (المتبقي على الفاتورة بيرجع يزيد) */
-export const removePayment = ({ id }: { id: number }): void => repo.remove(id)
+export function removePayment({ id }: { id: number }): void {
+  assertSalePaymentOpen(id)
+  repo.remove(id)
+}

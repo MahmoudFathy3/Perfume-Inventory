@@ -1,6 +1,7 @@
 import type { DateFilter, PageParams, PurchaseInput, PurchasePaymentInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, money, positiveAmount, round2, today } from '../../lib/errors'
+import { assertOpen, assertPurchaseOpen, assertPurchasePaymentOpen } from '../../lib/monthLock'
 import * as repo from './purchases.repository'
 import { receiveLines, releaseLines } from './purchases.stock'
 import { cleanPurchase } from './purchases.validation'
@@ -29,6 +30,7 @@ const header = (c: CleanPurchase) => ({
  */
 export function createPurchase(input: PurchaseInput): number {
   const c = cleanPurchase(input)
+  assertOpen(c.date)
   return getDb().transaction(() => {
     const id = repo.insertHeader(header(c))
     receiveLines(id, c, false, () => true)
@@ -53,6 +55,8 @@ export function updatePurchase({ id, ...input }: PurchaseInput & { id: number })
   getDb().transaction(() => {
     const before = repo.findById(id)
     if (!before) throw new AppError('PURCHASE_NOT_FOUND')
+    assertPurchaseOpen(id)
+    assertOpen(c.date)
     if (repo.returnsCount(id) > 0) throw new AppError('HAS_RETURNS')
 
     const old = repo.findLineRows(id)
@@ -74,6 +78,7 @@ export function updatePurchase({ id, ...input }: PurchaseInput & { id: number })
 export function removePurchase({ id }: { id: number }): void {
   getDb().transaction(() => {
     if (!repo.findById(id)) throw new AppError('PURCHASE_NOT_FOUND')
+    assertPurchaseOpen(id)
     if (repo.returnsCount(id) > 0) throw new AppError('HAS_RETURNS')
     releaseLines(repo.findLineRows(id))
     repo.remove(id)
@@ -85,13 +90,17 @@ export function payPurchase(input: PurchasePaymentInput): number {
   const purchase = repo.findById(Number(input.purchase_id))
   if (!purchase) throw new AppError('PURCHASE_NOT_FOUND')
   if (purchase.paid_by_partner === 1) throw new AppError('PAID_BY_PARTNER')
+  assertPurchaseOpen(purchase.id)
   if (purchase.remaining <= 0) throw new AppError('NOTHING_DUE')
   const amount = positiveAmount(input.amount)
   if (amount > purchase.remaining + EPS) throw new AppError('PAYMENT_EXCEEDS_REMAINING')
-  return repo.insertPayment(purchase.id, amount, input.payment_date || today(), input.notes?.trim() || null)
+  const date = input.payment_date || today()
+  assertOpen(date)
+  return repo.insertPayment(purchase.id, amount, date, input.notes?.trim() || null)
 }
 
 export function removePurchasePayment({ id }: { id: number }): void {
   if (!repo.findPayment(id)) throw new AppError('PAYMENT_NOT_FOUND')
+  assertPurchasePaymentOpen(id)
   repo.removePayment(id)
 }

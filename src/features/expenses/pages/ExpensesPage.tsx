@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { Expense, ExpenseInput } from '@shared/types'
 import { DateRangeFilter, FilterGroup } from '@/shared/components/data/DateRangeFilter'
 import type { DateRange } from '@/shared/components/data/DateRangeFilter'
+import { ExportMenu } from '@/shared/components/data/ExportMenu'
 import { Pagination } from '@/shared/components/data/Pagination'
 import { SearchBar } from '@/shared/components/data/SearchBar'
 import { Button, Modal, PageHeader, StatCard } from '@/shared/components/ui'
@@ -63,6 +64,7 @@ export default function ExpensesPage() {
     <>
       <PageHeader title={t('expenses.title')}>
         <SearchBar value={search} onChange={setSearch} />
+        <ExportMenu target={{ dataset: 'expenses', search: q, category, ...range }} />
         <Button variant="primary" icon={Plus} onClick={() => setEditing({ row: null })}>{t('expenses.add')}</Button>
       </PageHeader>
 

@@ -1,6 +1,7 @@
 import type { Item, PageParams, Transfer, TransferDetails, TransferInput, TransferMoney, TransferMoneyLine, TransferPaymentInput, TransfersFilter } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
+import { assertOpen, assertPartnerPaymentOpen, assertTransferOpen } from '../../lib/monthLock'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
 import * as itemsRepo from '../items/items.repository'
 import * as partnersRepo from '../partners/partners.repository'
@@ -110,6 +111,7 @@ function apply(c: CleanTransfer): { out: OutgoingLine[]; toItemIds: number[]; pa
 export const createTransfer = (input: TransferInput): number =>
   getDb().transaction(() => {
     const c = cleanTransfer(input)
+    assertOpen(c.date, [c.from, c.to])
     const { out, toItemIds, partnerSaleId } = apply(c)
     const id = repo.insertHeader({ ...header(c, out), partner_sale_id: partnerSaleId })
     insertLines(id, out, toItemIds)
@@ -132,6 +134,8 @@ export const updateTransfer = ({ id, ...input }: TransferInput & { id: number })
     }
     const oldLines = repo.findLineRows(id)
     const c = cleanTransfer(input)
+    assertTransferOpen(id)
+    assertOpen(c.date, [c.from, c.to])
     // التحويل اللي عليه دفعات: الدفعات مربوطة بالشريك والاتجاه، فدول مينفعش يتغيّروا
     const hasPayments = old.paid > 0
     const sameDeal = c.kind === 'sale' && c.partnerId === old.partner_id && c.from === old.from_workspace_id && c.to === old.to_workspace_id
@@ -178,6 +182,7 @@ export const removeTransfer = ({ id }: { id: number }): void =>
     const transfer = repo.findById(id)
     if (!transfer) throw new AppError('TRANSFER_NOT_FOUND')
     if (transfer.sale_id) throw new AppError('TRANSFER_FROM_SALE')
+    assertTransferOpen(id)
     if (transfer.partner_sale_id) {
       // التحويل للشريك: القطع بتخرج من الشراكة، وفاتورته في المخزون الفعلي بتتلغي والقطع بترجع
       takeBackFromDestination(transfer.to_workspace_id, repo.findLineRows(id))
@@ -203,6 +208,10 @@ export const payTransfer = (input: TransferPaymentInput): number =>
     const partnership = transfer.from_workspace_id === PERSONAL_WORKSPACE_ID ? transfer.to_workspace_id : transfer.from_workspace_id
     if (workspaces.findById(partnership)?.closed_at) throw new AppError('WORKSPACE_CLOSED')
 
+    assertTransferOpen(transfer.id)
+    const date = input.payment_date || today()
+    assertOpen(date, [transfer.from_workspace_id, transfer.to_workspace_id])
+
     const amount = positiveAmount(input.amount)
     if (amount > round2(transfer.total_price - transfer.paid) + 0.005) throw new AppError('PAYMENT_EXCEEDS_REMAINING')
     const intoPartnership = transfer.to_workspace_id === partnership
@@ -210,7 +219,7 @@ export const payTransfer = (input: TransferPaymentInput): number =>
       workspace_id: partnership,
       partner_id: transfer.partner_id,
       amount: intoPartnership ? amount : -amount,
-      payment_date: input.payment_date || today(),
+      payment_date: date,
       notes: input.notes?.trim() || null,
       transfer_id: transfer.id
     })
@@ -229,12 +238,14 @@ function paymentsPartnership(transferId: number): number {
 export const removeTransferPayment = ({ transfer_id, id }: { transfer_id: number; id: number }): void => {
   const partnership = paymentsPartnership(transfer_id)
   if (!partnersRepo.findTransferPayments(transfer_id).some((p) => p.id === id)) throw new AppError('PAYMENT_NOT_FOUND')
+  assertPartnerPaymentOpen(id)
   partnersRepo.removePayment(id, partnership)
 }
 
-/** التحويل يرجع "لسه متدفعش": كل دفعاته بتتحذف */
+/** التحويل يرجع "لسه متدفعش": كل دفعاته بتتحذف (مينفعش لو التحويل أو أي دفعة منه في شهر مقفول) */
 export const unpayTransfer = ({ transfer_id }: { transfer_id: number }): void => {
   paymentsPartnership(transfer_id)
+  for (const p of partnersRepo.findTransferPayments(transfer_id)) assertPartnerPaymentOpen(p.id)
   partnersRepo.removeTransferPayments(transfer_id)
 }
 

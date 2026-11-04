@@ -1,5 +1,6 @@
 import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales, PartnerStatement, PartnerTransferInput } from '@shared/types'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
+import { assertOpen, assertPartnerPaymentOpen } from '../../lib/monthLock'
 import { getDb } from '../../database/connection'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
 import * as customers from '../customers/customers.repository'
@@ -74,11 +75,13 @@ export function addPayment(input: PartnerPaymentInput): number {
   if (!workspaces.findPartners(ws).some((p) => p.id === Number(input.partner_id))) throw new AppError('PARTNER_NOT_FOUND')
   if (input.direction !== 'to_partner' && input.direction !== 'from_partner') throw new AppError('INVALID_TYPE')
   const amount = positiveAmount(input.amount)
+  const date = input.payment_date || today()
+  assertOpen(date, [ws])
   return repo.insertPayment({
     workspace_id: ws,
     partner_id: Number(input.partner_id),
     amount: input.direction === 'to_partner' ? amount : -amount,
-    payment_date: input.payment_date || today(),
+    payment_date: date,
     notes: input.notes?.trim() || null
   })
 }
@@ -97,6 +100,7 @@ export const transferBetweenPartners = (input: PartnerTransferInput): number =>
     if (from.id === to.id) throw new AppError('DUPLICATE_PARTNERS')
     const amount = positiveAmount(input.amount)
     const date = input.payment_date || today()
+    assertOpen(date, [ws])
     const notes = input.notes?.trim() || null
     const received = repo.insertPayment({ workspace_id: ws, partner_id: to.id, amount, payment_date: date, notes })
     const paid = repo.insertPayment({ workspace_id: ws, partner_id: from.id, amount: -amount, payment_date: date, notes })
@@ -105,7 +109,9 @@ export const transferBetweenPartners = (input: PartnerTransferInput): number =>
   })()
 
 export function removePayment({ id }: { id: number }): void {
-  repo.removePayment(id, currentPartnership())
+  const ws = currentPartnership()
+  assertPartnerPaymentOpen(id)
+  repo.removePayment(id, ws)
 }
 
 /**
@@ -125,3 +131,6 @@ export function partnerSales({ from, to }: Partial<DashboardRange> = {}): Partne
   if (rows.has(null)) result.push(row(null, null))
   return result
 }
+
+// تقفيل الشهر في ملف لوحده (closing.service)
+export { closedMonths, closeMonth, monthlyClosing, reopenMonth } from './closing.service'
