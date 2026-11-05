@@ -8,6 +8,7 @@ import * as clipboard from './clipboard/clipboard.ipc'
 import * as customers from './customers/customers.ipc'
 import * as dashboard from './dashboard/dashboard.ipc'
 import * as exporting from './export/export.ipc'
+import * as freeInvoices from './freeInvoices/freeInvoices.ipc'
 import * as items from './items/items.ipc'
 import * as partners from './partners/partners.ipc'
 import * as payments from './payments/payments.ipc'
@@ -27,6 +28,6 @@ export function registerAll(ctx: IpcContext): void {
   const handle = createHandle(ctx.ipcMain, (channel) => {
     if (!channel.startsWith('auth:') && channel !== 'app:name' && ctx.session.state() !== 'unlocked') throw new AppError('LOCKED')
   })
-  const features = [auth, workspaces, categories, items, purchases, sales, customers, payments, returns, transfers, expenses, warehouse, partners, dashboard, settings, backup, exporting, printing, clipboard]
+  const features = [auth, workspaces, categories, items, purchases, sales, freeInvoices, customers, payments, returns, transfers, expenses, warehouse, partners, dashboard, settings, backup, exporting, printing, clipboard]
   for (const feature of features) feature.register(handle, ctx)
 }

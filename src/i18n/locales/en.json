@@ -49,7 +49,8 @@
     "partners": "Partner accounts",
     "collapse": "Collapse menu",
     "expand": "Expand menu",
-    "expenses": "Expenses"
+    "expenses": "Expenses",
+    "freeInvoices": "Custom invoices"
   },
   "condition": {
     "label": "Condition",
@@ -371,7 +372,12 @@
     "EXPENSE_NOT_FOUND": "Expense not found",
     "PAID_BY_PARTNER": "A partner paid this invoice out of pocket; it has no supplier payments",
     "PAYMENT_NOT_FOUND": "Payment not found",
-    "NAME_TOO_LONG": "The name is too long (40 characters max)"
+    "NAME_TOO_LONG": "The name is too long (40 characters max)",
+    "PERSONAL_ONLY": "Custom invoices are only available in your own stock",
+    "INVOICE_NOT_FOUND": "Invoice not found",
+    "DISCOUNT_TOO_BIG": "The discount is bigger than the invoice",
+    "FREE_INVOICE_HAS_SALE": "A sale invoice was created from this invoice: its stock products can’t be changed here (edit the sale invoice, or delete it to unlink)",
+    "NO_STOCK_LINES": "This invoice has no products from your stock to record as a sale"
   },
   "app": {
     "name": "Perfume Inventory"
@@ -547,7 +553,9 @@
     "creditUsed": "Used from credit",
     "credit": "Credit",
     "returns": "Returns",
-    "toAccount": "Credited to the customer (off their balance or as credit)"
+    "toAccount": "Credited to the customer (off their balance or as credit)",
+    "free_invoiceTitle": "Invoice",
+    "discount": "Discount"
   },
   "toast": {
     "created": "Added successfully",
@@ -927,5 +935,44 @@
     "recordOnlySub": "Not counted in profit",
     "noTypes": "No types yet. Type a new one",
     "createType": "Add type “{{name}}”"
+  },
+  "freeInvoices": {
+    "title": "Custom invoices",
+    "add": "New invoice",
+    "edit": "Edit invoice #{{id}}",
+    "note": "An invoice for the customer with anything on it (from your stock or from elsewhere) so they see the total. It doesn’t deduct stock and isn’t counted in sales, profit or customer accounts. If it has products from your stock, use \"Record sale\" to deduct them.",
+    "personalOnly": "Custom invoices are only available in your own stock. Switch to it from the menu.",
+    "empty": "No custom invoices yet",
+    "customer": "Customer",
+    "customerName": "Customer name",
+    "customerNameHint": "If not registered",
+    "customerPhone": "Customer phone",
+    "line": "Product / item",
+    "lines": "Items",
+    "linesCount": "{{count}} items ({{stock}} from stock)",
+    "addLine": "Add item",
+    "externalItem": "Outside item: \"{{name}}\"",
+    "fromStock": "From your stock (not deducted unless you record a sale)",
+    "external": "From elsewhere",
+    "shipping": "Shipping",
+    "status": "Status",
+    "sale": "Sale invoice",
+    "saleBadge": "Sale #{{id}}",
+    "toSale": "Record sale",
+    "toSaleTitle": "Record a sale from invoice #{{id}}",
+    "toSaleNote": "A real sale invoice is created with only your stock products from this invoice (same quantities, prices, date and customer): pieces are deducted and profit is counted. Outside items, shipping and discount are not included.",
+    "toSaleNoCustomer": "This invoice has no registered customer, so the sale must be fully paid. If the customer still owes, choose a registered customer on the invoice first.",
+    "saleTotal": "Sale invoice total",
+    "confirmToSale": "Record sale invoice",
+    "saleNote": "From custom invoice #{{id}}",
+    "saleCreated": "Sale invoice #{{id}} created",
+    "linkedEditNote": "Sale invoice #{{id}} was created from this invoice: its stock products can’t be changed here, but you can edit outside items as usual.",
+    "payments": "Payments",
+    "paymentsTitle": "Payments for invoice #{{id}} — {{name}}",
+    "paymentsList": "Payments",
+    "noPayments": "No payments yet",
+    "newPayment": "New payment",
+    "payAll": "All remaining ({{amount}})",
+    "deleteNote": "The invoice and its payments will be deleted. Any sale invoice created from it stays as is."
   }
 }

@@ -9,6 +9,7 @@ import { ReturnsPage } from './features/returns'
 import { SalesPage } from './features/sales'
 import { SettingsPage } from './features/settings'
 import { ExpensesPage } from './features/expenses'
+import { FreeInvoicesPage } from './features/freeInvoices'
 import { TransfersPage } from './features/transfers'
 import { WorkspacesPage } from './features/workspaces'
 import { Layout } from './shared/layout/Layout'
@@ -24,6 +25,7 @@ export default function AppRoutes() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="purchases" element={<PurchasesPage />} />
         <Route path="sales" element={<SalesPage />} />
+        <Route path="free-invoices" element={<FreeInvoicesPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailsPage />} />
         <Route path="returns" element={<ReturnsPage />} />
