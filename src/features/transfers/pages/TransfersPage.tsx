@@ -68,6 +68,14 @@ export default function TransfersPage() {
     reload()
   }
 
+  /** حذف دفعة أو ترجيع التحويل متدفعش من التفاصيل: التفاصيل والجدول والملخص بيتحدّثوا */
+  async function changePayments(transferId: number, action: () => Promise<void>) {
+    await action()
+    toast.success(t('toast.saved'))
+    setViewing(await transfersApi.get({ id: transferId }))
+    reload()
+  }
+
   // حذف التحويل بيرجّع القطع للمخزن اللي خرجت منه (ويترفض لو الوجهة باعتها)
   const { ask, dialog } = useConfirmDelete<Transfer>(
     async (row) => {
@@ -151,7 +159,15 @@ export default function TransfersPage() {
           onClose={() => setPaying(null)}
         />
       )}
-      {viewing && <TransferDetailsModal transfer={viewing} nameOf={nameOf} onClose={() => setViewing(null)} />}
+      {viewing && (
+        <TransferDetailsModal
+          transfer={viewing}
+          nameOf={nameOf}
+          onClose={() => setViewing(null)}
+          onRemovePayment={(p) => changePayments(viewing.id, () => transfersApi.removePayment({ transfer_id: viewing.id, id: p.id }))}
+          onUnpay={() => changePayments(viewing.id, () => transfersApi.unpay({ transfer_id: viewing.id }))}
+        />
+      )}
       {dialog}
     </>
   )

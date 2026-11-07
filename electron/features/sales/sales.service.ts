@@ -1,16 +1,17 @@
-import type { PageParams, SaleInput } from '@shared/types'
+import type { DateFilter, PageParams, SaleInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, money, round2 } from '../../lib/errors'
 import { activeWorkspaceId } from '../../lib/workspace'
-import { removeSaleTransfers, sourcePrice, syncSalePayments, transferForSale } from '../transfers/transfers.sales'
+import { removeSaleTransfers, restoreSaleTransferPayments, saveSaleTransferPayments, sourcePrice, transferForSale } from '../transfers/transfers.sales'
 import * as payments from '../payments/payments.repository'
+import { useCredit } from '../payments/payments.service'
 import * as repo from './sales.repository'
 import { restoreLines, sellLines } from './sales.stock'
 import { cleanSale } from './sales.validation'
 import type { CleanSale } from './sales.validation'
 
 const EPS = 0.005
-type SalesFilter = { search?: string; partnerId?: number }
+type SalesFilter = { search?: string; partnerId?: number } & DateFilter
 export const listSales = (p: SalesFilter) => repo.findAll(p)
 export const pageSales = (p: SalesFilter & PageParams) => repo.findPage(p, p)
 export const getSale = ({ id }: { id: number }) => repo.findById(id)
@@ -65,11 +66,20 @@ export function createSale(input: SaleInput): number {
     const total = invoiceTotal(c, sellLines(id, bringForeignLines(id, c), false))
     repo.setTotal(id, total)
 
-    const paid = input.paid === undefined || input.paid === '' ? total : round2(money(input.paid))
-    if (paid > total + EPS) throw new AppError('PAID_EXCEEDS_TOTAL')
-    assertCustomerForDebt(c, total, paid)
+    // رصيد العميل (لو ليه) بيتخصم الأول، والمدفوع كاش الافتراضي = اللي فاضل
+    let fromCredit = 0
+    if (input.use_credit && c.customerId && total > 0) {
+      const available = repo.findAll({ customerId: c.customerId }).reduce((sum, s) => sum + (s.id === id ? 0 : s.credit), 0)
+      if (available > EPS) {
+        fromCredit = round2(Math.min(available, total))
+        useCredit(c.customerId, fromCredit, c.date, id)
+      }
+    }
+    const due = round2(total - fromCredit)
+    const paid = input.paid === undefined || input.paid === '' ? due : round2(money(input.paid))
+    if (paid > due + EPS) throw new AppError('PAID_EXCEEDS_TOTAL')
+    assertCustomerForDebt(c, due, paid)
     if (paid > 0) payments.insert(id, paid, c.date, null)
-    syncSalePayments(id)
     return id
   })()
 }
@@ -89,11 +99,14 @@ export function updateSale({ id, ...input }: SaleInput & { id: number }): void {
     if (repo.returnsCount(id) > 0) throw new AppError('HAS_RETURNS')
 
     restoreLines(id)
-    removeSaleTransfers(id) // القطع اللي كانت جاية من مخزن تاني بترجع له، وبتتحوّل تاني بالسطور الجديدة
+    // القطع اللي كانت جاية من مخزن تاني بترجع له، وبتتحوّل تاني بالسطور الجديدة (ودفعات التحويلات بترجع عليها)
+    const transferPayments = saveSaleTransferPayments(id)
+    removeSaleTransfers(id)
     repo.deleteLines(id)
     repo.updateHeader(id, header(c, 0))
     const total = invoiceTotal(c, sellLines(id, bringForeignLines(id, c), true))
     repo.setTotal(id, total)
+    restoreSaleTransferPayments(id, transferPayments)
 
     if (!c.customerId && old.customer_id === null) {
       payments.removeBySale(id)
@@ -103,7 +116,6 @@ export function updateSale({ id, ...input }: SaleInput & { id: number }): void {
       if (paid > total + EPS) throw new AppError('TOTAL_BELOW_PAID')
       assertCustomerForDebt(c, total, paid)
     }
-    syncSalePayments(id)
   })()
 }
 

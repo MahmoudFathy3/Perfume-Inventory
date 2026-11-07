@@ -1,13 +1,15 @@
-import { FileText, HandCoins, Info } from 'lucide-react'
+import { FileText, HandCoins, Info, ListTree } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { PartnerAccount } from '@shared/types'
-import { Button, DataTable } from '@/shared/components/ui'
+import { Button, DataTable, RowActions } from '@/shared/components/ui'
 import type { Column } from '@/shared/components/ui'
 import { formatMoney } from '@/shared/utils/format'
 
 interface PartnerAccountsTableProps {
   rows: PartnerAccount[]
   onSettle: (row: PartnerAccount) => void
+  /** فتح كشف الحساب المفصّل (الباقي جاي منين) */
+  onDetails: (row: PartnerAccount) => void
   /** فتح كشف حساب الشريك كعميل في المخزون الفعلي */
   onOpenStoreAccount: (customerId: number) => void
 }
@@ -23,7 +25,7 @@ function HintHeader({ label, hint }: { label: string; hint: string }) {
 }
 
 /** كشف حساب كل شريك: رأس ماله، اللي باعه للشراكة، نصيبه من الربح، اللي اتسوّى، والمستحق */
-export function PartnerAccountsTable({ rows, onSettle, onOpenStoreAccount }: PartnerAccountsTableProps) {
+export function PartnerAccountsTable({ rows, onSettle, onDetails, onOpenStoreAccount }: PartnerAccountsTableProps) {
   const { t, i18n } = useTranslation()
   const money = (v: number) => formatMoney(v, i18n.language)
 
@@ -31,6 +33,7 @@ export function PartnerAccountsTable({ rows, onSettle, onOpenStoreAccount }: Par
     { key: 'name', header: t('partners.partner'), cell: (a) => <strong>{a.partner.name}</strong> },
     { key: 'capital', header: <HintHeader label={t('partners.capital')} hint={t('partners.capitalHint')} />, cell: (a) => money(a.capital) },
     { key: 'sold', header: <HintHeader label={t('partners.sold')} hint={t('partners.soldHint')} />, cell: (a) => money(a.sold) },
+    { key: 'paidOut', header: <HintHeader label={t('partners.paidOut')} hint={t('partners.paidOutHint')} />, cell: (a) => money(a.paid_out) },
     { key: 'share', header: <HintHeader label={t('partners.profitShare')} hint={t('partners.profitShareHint')} />, cell: (a) => money(a.profit_share) },
     {
       key: 'settled',
@@ -70,7 +73,16 @@ export function PartnerAccountsTable({ rows, onSettle, onOpenStoreAccount }: Par
         )
       }
     },
-    { key: 'actions', header: '', cell: (a) => <Button size="sm" icon={HandCoins} onClick={() => onSettle(a)}>{t('partners.settle')}</Button> }
+    {
+      key: 'actions',
+      header: '',
+      cell: (a) => (
+        <RowActions>
+          <Button size="sm" icon={ListTree} onClick={() => onDetails(a)}>{t('partners.statement.open')}</Button>
+          <Button size="sm" icon={HandCoins} onClick={() => onSettle(a)}>{t('partners.settle')}</Button>
+        </RowActions>
+      )
+    }
   ]
 
   return <DataTable columns={columns} rows={rows} rowKey={(a) => a.partner.id} />

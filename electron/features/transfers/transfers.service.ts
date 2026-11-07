@@ -199,7 +199,6 @@ export const payTransfer = (input: TransferPaymentInput): number =>
   getDb().transaction(() => {
     const transfer = repo.findById(Number(input.transfer_id))
     if (!transfer) throw new AppError('TRANSFER_NOT_FOUND')
-    if (transfer.sale_id) throw new AppError('TRANSFER_FROM_SALE') // بيتدفع مع الفاتورة
     if (transfer.kind !== 'sale' || !transfer.partner_id) throw new AppError('NOT_A_SALE_TRANSFER')
     const partnership = transfer.from_workspace_id === PERSONAL_WORKSPACE_ID ? transfer.to_workspace_id : transfer.from_workspace_id
     if (workspaces.findById(partnership)?.closed_at) throw new AppError('WORKSPACE_CLOSED')
@@ -216,6 +215,28 @@ export const payTransfer = (input: TransferPaymentInput): number =>
       transfer_id: transfer.id
     })
   })()
+
+/** الشراكة اللي دفعات التحويل متسجلة فيها (لازم تكون مفتوحة علشان نعدّل فيها) */
+function paymentsPartnership(transferId: number): number {
+  const transfer = repo.findById(transferId)
+  if (!transfer) throw new AppError('TRANSFER_NOT_FOUND')
+  const partnership = transfer.from_workspace_id === PERSONAL_WORKSPACE_ID ? transfer.to_workspace_id : transfer.from_workspace_id
+  if (workspaces.findById(partnership)?.closed_at) throw new AppError('WORKSPACE_CLOSED')
+  return partnership
+}
+
+/** حذف دفعة واحدة على تحويل (اتسجلت بالغلط، أو الدفع اترجع): التحويل بيرجع عليه المبلغ */
+export const removeTransferPayment = ({ transfer_id, id }: { transfer_id: number; id: number }): void => {
+  const partnership = paymentsPartnership(transfer_id)
+  if (!partnersRepo.findTransferPayments(transfer_id).some((p) => p.id === id)) throw new AppError('PAYMENT_NOT_FOUND')
+  partnersRepo.removePayment(id, partnership)
+}
+
+/** التحويل يرجع "لسه متدفعش": كل دفعاته بتتحذف */
+export const unpayTransfer = ({ transfer_id }: { transfer_id: number }): void => {
+  paymentsPartnership(transfer_id)
+  partnersRepo.removeTransferPayments(transfer_id)
+}
 
 function addTo(line: TransferMoneyLine, t: Transfer): void {
   line.total = round2(line.total + t.total_price)

@@ -5,15 +5,22 @@ import { listWorkspaces } from '../workspaces/workspaces.service'
 import { buildPeriods, previousRange } from './dashboard.periods'
 import * as repo from './dashboard.repository'
 
-/** الربح الفعلي للفترة = ربح الأصناف - ربح ضاع بمرتجعات البيع - شحن بيع على المحل */
-const profitOf = (range: repo.Range, shopShipping: number): number => repo.grossProfit(range) - repo.returnsLoss(range) - shopShipping
+/**
+ * الربح الفعلي للفترة = ربح الأصناف + ربح التحويلات اللي اتحصّلت (القطع اللي اتباعت لمخزن تاني بسعر)
+ * − ربح ضاع بمرتجعات البيع − شحن بيع على المحل
+ */
+const profitOf = (range: repo.Range, shopShipping: number): number =>
+  repo.grossProfit(range) + repo.transferProfit(range) - repo.returnsLoss(range) - shopShipping
 
 const toMap = (rows: { period: string; value: number | null }[]) => Object.fromEntries(rows.map((r) => [r.period, r.value || 0]))
 
 const ALL_TIME: repo.Range = { from: null, to: null }
 
-/** الربح الفعلي للمخزن النشط من أول يوم (بيستخدمه ملخص المخازن وحسابات الشركاء) */
-export const lifetimeProfit = (): number => profitOf(ALL_TIME, repo.sales(ALL_TIME).shop_shipping)
+/**
+ * صافي ربح المخزن النشط من أول يوم = الربح الفعلي − المصروفات اللي بتتخصم من الربح
+ * (بيستخدمه ملخص المخازن وحسابات الشركاء: نصيب كل شريك من الصافي)
+ */
+export const lifetimeProfit = (): number => profitOf(ALL_TIME, repo.sales(ALL_TIME).shop_shipping) - repo.expenses(ALL_TIME).deducted
 
 /** ملخص كل المخازن المفتوحة (الفعلي والشراكات، من غير المخازن الخارجية): بيتحسب لكل واحد على بياناته هو بس */
 export function overview(): WorkspaceOverview[] {
@@ -43,6 +50,9 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
   const sales = repo.sales(p)
   const saleReturns = repo.returnsOf('sale', p)
   const purchaseReturns = repo.returnsOf('purchase', p)
+  const expenses = repo.expenses(p)
+  const transferSales = repo.transferSales(p)
+  const profit = profitOf(p, sales.shop_shipping)
   const bounds = repo.dataRange()
   const { mode, periods } = buildPeriods(p.from || bounds.min, p.to || bounds.max)
   const len = mode === 'month' ? 7 : 10
@@ -50,6 +60,8 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
   const salesMap = toMap(repo.salesBy(p, len))
   const purchasesMap = toMap(repo.purchasesBy(p, len))
   const profitMap = toMap(repo.profitBy(p, len))
+  const transferProfitMap = toMap(repo.transferProfitBy(p, len))
+  const transferSalesMap = toMap(repo.transferSalesBy(p, len))
   const lossMap = toMap(repo.lossBy(p, len))
   const shopShippingMap = toMap(repo.shopShippingBy(p, len))
 
@@ -84,10 +96,19 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
       returns: round2(saleReturns.total),
       net_products: round2(sales.products - saleReturns.total)
     },
+    transfer_sales: {
+      count: transferSales.count,
+      pieces: transferSales.pieces,
+      total: round2(transferSales.total),
+      paid: round2(transferSales.paid),
+      remaining: round2(Math.max(0, transferSales.total - transferSales.paid))
+    },
     today: { count: todaySales.count, total: round2(todaySales.total) },
     receivables: round2(repo.receivables()),
     collected: round2(repo.collected(p)),
-    profit: round2(profitOf(p, sales.shop_shipping)),
+    profit: round2(profit),
+    expenses: { count: expenses.count, total: round2(expenses.total), deducted: round2(expenses.deducted) },
+    net_profit: round2(profit - expenses.deducted),
     profit_previous: prev ? { ...prev, profit: round2(profitOf(prev, repo.sales(prev).shop_shipping)) } : null,
     counts: repo.counts(),
     charts: {
@@ -96,7 +117,8 @@ export function summary(input: Partial<DashboardRange> = {}): DashboardSummary {
         period,
         sales: round2(salesMap[period] || 0),
         purchases: round2(purchasesMap[period] || 0),
-        profit: round2((profitMap[period] || 0) - (lossMap[period] || 0) - (shopShippingMap[period] || 0))
+        transfer_sales: round2(transferSalesMap[period] || 0),
+        profit: round2((profitMap[period] || 0) + (transferProfitMap[period] || 0) - (lossMap[period] || 0) - (shopShippingMap[period] || 0))
       })),
       top: repo.topProducts(p),
       stock: { new: stock.new_pieces, damaged: stock.damaged_pieces }

@@ -1,4 +1,6 @@
 import { queryAll } from '../../../database/connection'
+import { dateClause } from '../../../lib/dateRange'
+import { salePaid, saleRemaining } from '../../../lib/salePaid'
 import { searchClause } from '../../../lib/search'
 import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, scoped } from '../../../lib/workspace'
 import type { ExportColumn, ExportParams } from '@shared/types'
@@ -8,10 +10,12 @@ import { type Row, type SheetDef, col } from './sheet'
 const withPartner = (columns: ExportColumn[]) => () =>
   activeWorkspaceId() === PERSONAL_WORKSPACE_ID ? columns : columns.flatMap((c) => (c.key === 'customer' ? [c, col('partner', 'text', 18)] : [c]))
 
-/** البحث + فلتر الشريك (لو متحدد) */
-function salesWhere({ search, partnerId }: ExportParams) {
+/** البحث + فلتر الشريك والفترة (لو متحددين) */
+function salesWhere({ search, partnerId, ...range }: ExportParams) {
   const { where, params } = scoped('s.workspace_id', searchClause(['cu.name', 's.notes'], search))
-  return partnerId ? { where: `${where} AND s.partner_id = @partnerId`, params: { ...params, partnerId } } : { where, params }
+  const dates = dateClause('s.sale_date', range)
+  const byPartner = partnerId ? 'AND s.partner_id = @partnerId' : ''
+  return { where: `${where} ${byPartner} ${dates.where}`, params: { ...params, ...dates.params, partnerId } }
 }
 
 // ربح الفاتورة = ربح الأصناف - شحن على المحل
@@ -34,9 +38,8 @@ export const salesSheet: SheetDef = {
               (SELECT COALESCE(SUM(quantity), 0) FROM sale_items WHERE sale_id = s.id) AS total_quantity,
               s.total - CASE WHEN s.shipping_payer = 'customer' THEN s.shipping_cost ELSE 0 END AS subtotal,
               s.shipping_cost, s.shipping_payer, s.total,
-              ROUND(COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2) AS paid,
-              MAX(0, ROUND(s.total - COALESCE((SELECT SUM(total) FROM returns WHERE sale_id = s.id), 0)
-                                   - COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = s.id), 0), 2)) AS remaining,
+              ROUND(${salePaid('s.id')}, 2) AS paid,
+              ${saleRemaining('s.id', 's.total')} AS remaining,
               (SELECT COALESCE(SUM(quantity * purchase_price), 0) FROM sale_items WHERE sale_id = s.id) AS cost_total,
               ${SALE_PROFIT} AS profit,
               (SELECT COALESCE(SUM(total), 0) FROM returns WHERE sale_id = s.id) AS returns_total, s.notes

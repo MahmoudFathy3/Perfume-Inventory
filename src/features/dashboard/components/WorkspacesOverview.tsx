@@ -26,7 +26,7 @@ export function WorkspacesOverview() {
             [t('dashboard.totalPieces'), formatNumber(o.pieces, lang)],
             [t('dashboard.salesToday'), formatMoney(o.today_sales, lang)],
             [t('dashboard.receivables'), formatMoney(o.receivables, lang)],
-            [t('dashboard.actualProfit'), formatMoney(o.profit, lang), o.profit < 0 ? 'text-rose-600' : 'text-green-700']
+            [t('dashboard.netProfit'), formatMoney(o.profit, lang), o.profit < 0 ? 'text-rose-600' : 'text-green-700']
           ]
           return (
             <button

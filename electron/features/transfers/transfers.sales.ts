@@ -1,10 +1,9 @@
-import type { Condition, PriceType } from '@shared/types'
+import type { Condition, PartnerPayment, PriceType } from '@shared/types'
 import { removeFromAverage } from '../../lib/cost'
 import { AppError } from '../../lib/errors'
 import { PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
 import * as itemStock from '../items/stock.repository'
 import * as partnersRepo from '../partners/partners.repository'
-import * as salesRepo from '../sales/sales.repository'
 import * as workspaces from '../workspaces/workspaces.repository'
 import * as repo from './transfers.repository'
 import { header, insertLines } from './transfers.service'
@@ -15,6 +14,7 @@ import { cleanTransfer } from './transfers.validation'
  * التحويلات التلقائية لفاتورة بيع فيها منتجات من مخزن تاني (المخزون الفعلي ↔ شراكة):
  * السطور دي بتتحوّل "بيع بسعر" لمخزن الفاتورة قبل البيع، والشريك في التحويل = صاحب المخزون الفعلي.
  * بسعر التحويل = سعر البيع: ربح القطعة كله للمخزن اللي هي منه، ومخزن الفاتورة ربحه فيها صفر.
+ * التحويل بيتعمل لسه متدفعش، والمستخدم بيدفعه بنفسه من التحويلات (مش بيتدفع لوحده مع الفاتورة).
  */
 
 const EPS = 0.005
@@ -76,31 +76,28 @@ export function removeSaleTransfers(saleId: number): void {
   }
 }
 
-/**
- * دفع تحويلات الفاتورة ماشي مع الفاتورة: لما الفاتورة تتدفع كلها (بعد المرتجع) التحويلات بتتعلّم مدفوعة
- * (تسوية لصاحب المخزون في الشراكة بتاريخ آخر دفعة)، وغير كده بتفضل لسه متدفعتش.
- * لازم تتنده جوه مخزن الفاتورة (الفاتورة بتتقري منه).
- */
-export function syncSalePayments(saleId: number): void {
-  const transfers = repo.findBySale(saleId)
-  if (transfers.length === 0) return
-  const sale = salesRepo.findById(saleId)
-  const settled = !!sale && sale.total - sale.returns_total > EPS && sale.remaining <= EPS
-  const date = sale?.payments.reduce((last, p) => (p.payment_date > last ? p.payment_date : last), sale.sale_date) ?? ''
+/** دفعات تحويلات الفاتورة لكل مخزن مصدر (بنحفظها قبل ما تعديل الفاتورة يلغي التحويلات ويعملها من جديد) */
+export type SavedTransferPayments = Map<number, PartnerPayment[]>
 
-  for (const t of transfers) {
-    partnersRepo.removeTransferPayments(t.id)
-    if (!settled || t.total_price <= 0 || !t.partner_id) continue
-    const partnership = partnershipOf(t.from_workspace_id, t.to_workspace_id)
-    partnersRepo.insertPayment({
-      workspace_id: partnership,
-      partner_id: t.partner_id,
-      // للشراكة = الشراكة دفعت لصاحب المخزون، من الشراكة = صاحب المخزون دفع للشراكة
-      amount: t.to_workspace_id === partnership ? t.total_price : -t.total_price,
-      payment_date: date,
-      notes: null,
-      transfer_id: t.id
-    })
+export function saveSaleTransferPayments(saleId: number): SavedTransferPayments {
+  const saved: SavedTransferPayments = new Map()
+  for (const t of repo.findBySale(saleId)) saved.set(t.from_workspace_id, [...(saved.get(t.from_workspace_id) ?? []), ...partnersRepo.findTransferPayments(t.id)])
+  return saved
+}
+
+/**
+ * بعد تعديل الفاتورة: الدفعات اللي اتسجلت بإيد المستخدم بترجع على التحويل الجديد من نفس المصدر
+ * (بحد أقصى إجمالي التحويل الجديد، والزيادة بتتشال). دفع تحويلات الفاتورة مش بيمشي مع دفع الفاتورة: المستخدم بيدفعها بنفسه.
+ */
+export function restoreSaleTransferPayments(saleId: number, saved: SavedTransferPayments): void {
+  for (const t of repo.findBySale(saleId)) {
+    let left = t.total_price
+    for (const p of saved.get(t.from_workspace_id) ?? []) {
+      const amount = Math.min(Math.abs(p.amount), left)
+      if (amount <= EPS) break
+      partnersRepo.insertPayment({ workspace_id: partnershipOf(t.from_workspace_id, t.to_workspace_id), partner_id: p.partner_id, amount: Math.sign(p.amount) * amount, payment_date: p.payment_date, notes: p.notes, transfer_id: t.id })
+      left -= amount
+    }
   }
 }
 

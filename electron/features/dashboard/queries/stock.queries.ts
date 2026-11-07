@@ -1,5 +1,6 @@
 /** الأرقام الحالية (مبتتأثرش بفلتر التاريخ): المخزن ورأس المال وعدد الأصناف ومستحقات العملاء */
 import { queryOne } from '../../../database/connection'
+import { saleRemaining } from '../../../lib/salePaid'
 import { inWorkspace } from '../../../lib/workspace'
 
 export const stock = () =>
@@ -32,9 +33,7 @@ export const counts = () =>
 /** إجمالي اللي لسه على العملاء (بعد الدفعات والمرتجعات) */
 export const receivables = () =>
   queryOne<{ total: number }>(
-    `SELECT COALESCE(SUM(MAX(0, ROUND(s.total
-              - COALESCE((SELECT SUM(total) FROM returns r WHERE r.sale_id = s.id), 0)
-              - COALESCE((SELECT SUM(amount) FROM sale_payments p WHERE p.sale_id = s.id), 0), 2))), 0) AS total
+    `SELECT COALESCE(SUM(${saleRemaining('s.id', 's.total')}), 0) AS total
      FROM sales s WHERE ${inWorkspace('s.workspace_id')}`
   )!.total
 
