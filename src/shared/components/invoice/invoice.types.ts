@@ -1,11 +1,12 @@
-import type { Condition, PriceType, PurchaseWithLines, ReturnWithLines, SaleWithLines, SettingsMap, ShippingPayer } from '@shared/types'
+import type { Condition, FreeInvoiceWithLines, PriceType, PurchaseWithLines, ReturnWithLines, SaleWithLines, SettingsMap, ShippingPayer } from '@shared/types'
 
-export type InvoiceKind = 'sale' | 'purchase' | 'sale_return' | 'purchase_return'
+export type InvoiceKind = 'sale' | 'purchase' | 'sale_return' | 'purchase_return' | 'free_invoice'
 
 export interface InvoiceDocLine {
   name_ar: string
   name_en: string | null
-  condition: Condition
+  /** null = بند من برّه في فاتورة حرّة (ملوش حالة) */
+  condition: Condition | null
   quantity: number
   unit_price: number
 }
@@ -16,10 +17,14 @@ export interface InvoiceDocData {
   id: number
   date: string
   party: string | null
+  /** تليفون العميل (الفاتورة الحرّة) */
+  phone?: string | null
   priceType?: PriceType
   /** مين بيدفع الشحن (في البيع بس) */
   shippingPayer?: ShippingPayer
   shipping: number
+  /** خصم (الفاتورة الحرّة) */
+  discount?: number
   total: number
   notes: string | null
   /** المدفوع (قبل أي رد) والمتبقي، واللي اترد كاش، واللي اتخصم من رصيده، والرصيد اللي ليه (فواتير البيع بس) */
@@ -75,4 +80,20 @@ export const fromReturn = (r: ReturnWithLines): InvoiceDocData => ({
   notes: r.reason,
   refunded: r.refunded,
   lines: r.items.map((l) => ({ name_ar: l.name_ar, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.unit_price }))
+})
+
+export const fromFreeInvoice = (f: FreeInvoiceWithLines): InvoiceDocData => ({
+  kind: 'free_invoice',
+  id: f.id,
+  date: f.invoice_date,
+  party: f.customer_name,
+  phone: f.customer_phone,
+  priceType: f.price_type,
+  shipping: f.shipping_cost,
+  discount: f.discount,
+  total: f.total,
+  notes: f.notes,
+  paid: f.paid,
+  remaining: f.remaining,
+  lines: f.items.map((l) => ({ name_ar: l.name, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.unit_price }))
 })
