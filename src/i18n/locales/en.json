@@ -33,7 +33,9 @@
     "to": "To date",
     "deleting": "Deleting...",
     "print": "Print",
-    "savePdf": "Save PDF"
+    "savePdf": "Save PDF",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -377,7 +379,10 @@
     "INVOICE_NOT_FOUND": "Invoice not found",
     "DISCOUNT_TOO_BIG": "The discount is bigger than the invoice",
     "FREE_INVOICE_HAS_SALE": "A sale invoice was created from this invoice: its stock products can’t be changed here (edit the sale invoice, or delete it to unlink)",
-    "NO_STOCK_LINES": "This invoice has no products from your stock to record as a sale"
+    "NO_STOCK_LINES": "This invoice has no products from your stock to record as a sale",
+    "STORE_ONLY": "Custom invoices are only available in your own stock and partnerships",
+    "CAPTURE_FAILED": "Couldn’t create the invoice image. Try PDF",
+    "INVALID_PHONE": "Invalid phone number"
   },
   "app": {
     "name": "Perfume Inventory"
@@ -414,7 +419,16 @@
       "sale": "Sale invoice",
       "sale_return": "Sale return",
       "purchase_return": "Purchase return"
-    }
+    },
+    "piecesTotal": "Total for {{count}} pcs",
+    "stockPieces": "Pieces in stock",
+    "stockPiecesSub": "New {{new}} · Damaged {{damaged}}",
+    "stockCost": "Stock value at cost",
+    "stockCostSub": "Money tied up in this product (capital)",
+    "stockSelling": "Stock value at selling price",
+    "stockWholesaleSub": "At wholesale: {{amount}}",
+    "stockExpectedProfit": "Expected profit",
+    "stockExpectedProfitSub": "If all sold at selling price"
   },
   "export": {
     "button": "Export",
@@ -555,7 +569,10 @@
     "returns": "Returns",
     "toAccount": "Credited to the customer (off their balance or as credit)",
     "free_invoiceTitle": "Invoice",
-    "discount": "Discount"
+    "discount": "Discount",
+    "productTotals": "Total per product",
+    "totalQuantity": "Total quantity",
+    "productTotal": "Total"
   },
   "toast": {
     "created": "Added successfully",
@@ -941,7 +958,7 @@
     "add": "New invoice",
     "edit": "Edit invoice #{{id}}",
     "note": "An invoice for the customer with anything on it (from your stock or from elsewhere) so they see the total. It doesn’t deduct stock and isn’t counted in sales, profit or customer accounts. If it has products from your stock, use \"Record sale\" to deduct them.",
-    "personalOnly": "Custom invoices are only available in your own stock. Switch to it from the menu.",
+    "personalOnly": "Custom invoices are available in your own stock and partnerships, not in an external warehouse.",
     "empty": "No custom invoices yet",
     "customer": "Customer",
     "customerName": "Customer name",
@@ -952,7 +969,7 @@
     "linesCount": "{{count}} items ({{stock}} from stock)",
     "addLine": "Add item",
     "externalItem": "Outside item: \"{{name}}\"",
-    "fromStock": "From your stock (not deducted unless you record a sale)",
+    "fromStock": "From this store (not deducted unless you record a sale)",
     "external": "From elsewhere",
     "shipping": "Shipping",
     "status": "Status",
@@ -974,5 +991,28 @@
     "newPayment": "New payment",
     "payAll": "All remaining ({{amount}})",
     "deleteNote": "The invoice and its payments will be deleted. Any sale invoice created from it stays as is."
+  },
+  "share": {
+    "whatsapp": "WhatsApp",
+    "asImage": "Send as image",
+    "asPdf": "Send as PDF",
+    "imageReady": "WhatsApp opened: the image appears in the chat in a few seconds, press send. If it doesn’t, press Ctrl+V.",
+    "pdfReady": "WhatsApp opened: the file appears in the chat in a few seconds, press send. If it doesn’t, its folder opens so you can drag it.",
+    "title": "Send invoice on WhatsApp",
+    "format": "Send as",
+    "imageHow": "The image is put into the chat for you; just press send",
+    "pdfHow": "The file is put into the chat for you; just press send",
+    "to": "To",
+    "toCustomer": "Customer ({{phone}})",
+    "toNumber": "Another number",
+    "toPick": "Pick a chat in WhatsApp",
+    "pickHow": "Click any chat or group in WhatsApp; as soon as it opens the invoice is put into it",
+    "number": "Number",
+    "message": "Message",
+    "defaultMessage": "{{title}} #{{id}} — Total {{total}}",
+    "send": "Open WhatsApp",
+    "preparing": "Preparing the invoice...",
+    "pickChat": "Click the chat you want to send to in WhatsApp.",
+    "loginNote": "First time only: scan the QR code from WhatsApp on your phone (Linked devices) to open WhatsApp inside the app."
   }
 }

@@ -42,7 +42,10 @@ test('الفاتورة الحرّة: التوتال بالشحن والخصم، 
   invoiceId = free.createFreeInvoice(input({ paid: 500 }))
   const f = free.getFreeInvoice({ id: invoiceId })
   assert.deepEqual([f.total, f.paid, f.remaining, f.customer_name, f.customer_phone, f.stock_lines, f.lines_count], [780, 500, 280, 'علي', '0100', 1, 2])
-  assert.deepEqual(f.items.map((l) => [l.name, l.item_id, l.condition]), [['عود', oud, 'new'], ['مسك من محل أحمد', null, null]])
+  assert.deepEqual(f.items.map((l) => [l.name, l.item_id, l.condition]), [['عود', oud, 'new'], ['مسك من محل أحمد', null, 'new']], 'البند اللي من برّه حالته جديد افتراضي')
+  const damaged = free.createFreeInvoice(input({ items: [{ name: 'عنبر', condition: 'damaged', quantity: 1, unit_price: 50 }], discount: 0 }))
+  assert.equal(free.getFreeInvoice({ id: damaged }).items[0].condition, 'damaged', 'وممكن تالف')
+  free.removeFreeInvoice({ id: damaged })
 
   assert.equal(stockOf(oud, 'new').quantity, 10, 'المخزون زي ما هو')
   const after = dashboard.summary()
@@ -112,7 +115,27 @@ test('البحث بالعميل أو باسم بند، وفلتر التاريخ
   assert.equal(free.pageFreeInvoices({ from: '2031-01-01', page: 1, pageSize: 50 }).rows.length, 0)
 })
 
-test('في المخزون الفعلي بس', () => {
-  const shop = ws.createWorkspace({ partners: ['أ', 'ب'] })
-  assert.equal(err(() => withWorkspace(shop, () => free.pageFreeInvoices({ page: 1, pageSize: 10 }))), 'PERSONAL_ONLY')
+test('في الشراكة كمان: كل مخزن فواتيره، و"سجّل بيع" بيبيع من الشراكة بالشريك اللي باع', () => {
+  const shop = ws.createWorkspace({ partners: ['محمود', 'أحمد'] })
+  const [mahmoud] = ws.listWorkspaces().find((w) => w.id === shop)!.partners.map((p) => p.id)
+  withWorkspace(shop, () => {
+    const c = categories.createCategory({ name: 'مسكات' })
+    const musk = items.createItem({ category_id: c, name_ar: 'مسك', stock: { new: { quantity: 5, purchase_price: 50, selling_price: 150, wholesale_price: 0 }, damaged: zero } })
+    assert.equal(free.pageFreeInvoices({ page: 1, pageSize: 50 }).rows.length, 0, 'فواتير المخزون الفعلي مبتظهرش هنا')
+    assert.equal(err(() => free.getFreeInvoice({ id: invoiceId })), 'INVOICE_NOT_FOUND')
+    // منتج من المخزون الفعلي مش منتج في الشراكة
+    assert.equal(err(() => free.createFreeInvoice(input({ customer_id: null, items: [{ item_id: oud, quantity: 1, unit_price: 1 }] }))), 'ITEM_NOT_FOUND')
+
+    const id = free.createFreeInvoice(input({ customer_id: null, customer_name: 'زبون', discount: 0, shipping_cost: 0, items: [{ item_id: musk, condition: 'new', quantity: 2, unit_price: 150 }, { name: 'من برّه', quantity: 1, unit_price: 100 }] }))
+    assert.equal(free.getFreeInvoice({ id }).total, 400)
+    assert.equal(err(() => free.createSaleFromFreeInvoice({ id })), 'PARTNER_REQUIRED')
+    const saleId = free.createSaleFromFreeInvoice({ id, partner_id: mahmoud })
+    const sale = sales.getSale({ id: saleId })!
+    assert.deepEqual([sale.total, sale.partner_id], [300, mahmoud])
+    assert.equal(items.listItems({}).find((i) => i.id === musk)!.new_quantity, 3)
+  })
+  assert.equal(free.pageFreeInvoices({ page: 1, pageSize: 50 }).rows.every((r) => r.workspace_id === 1), true, 'وفواتير الشراكة مبتظهرش في المخزون الفعلي')
+
+  const saudi = ws.createWorkspace({ kind: 'warehouse', name: 'مخزن جدة' })
+  assert.equal(err(() => withWorkspace(saudi, () => free.pageFreeInvoices({ page: 1, pageSize: 10 }))), 'STORE_ONLY')
 })

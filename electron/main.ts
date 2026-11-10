@@ -3,6 +3,7 @@ import { initBackend } from './app/bootstrap'
 import { IS_DEV } from './config/runtime'
 import { APP_ID, APP_NAME, launchWithSplash } from './windows'
 import { denyPermissions } from './windows/security'
+import { closeWhatsApp } from './windows/whatsapp.window'
 
 // الاسم لازم يتحدد قبل أي استخدام لمسار بيانات التطبيق (userData)
 app.setName(APP_NAME)
@@ -33,7 +34,10 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(null)
     denyPermissions()
     mainWindow = await launchWithSplash(initBackend)
+    // نافذة واتساب بتستخبى بس لما تقفلها (علشان متتحمّلش تاني)، فلما البرنامج نفسه يتقفل بنقفلها بجد
+    mainWindow.on('closed', closeWhatsApp)
   })
 
+  app.on('before-quit', closeWhatsApp)
   app.on('window-all-closed', () => app.quit())
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { bilingualName, formatDate, formatMoney, formatNumber } from '../../utils/format'
 import type { InvoiceDocData, ShopInfo } from './invoice.types'
+import { productTotals } from './productTotals'
 import { useAppName } from '../../hooks/useAppName'
 
 interface InvoiceDocumentProps {
@@ -82,6 +83,29 @@ export function InvoiceDocument({ data, shop }: InvoiceDocumentProps) {
           ))}
         </tbody>
       </table>
+
+      {/* الفاتورة الحرّة: إجمالي كل منتج (عدده كله في كل السطور وفلوسه كلها) */}
+      {data.kind === 'free_invoice' && (
+        <table className="mb-4 w-full border-collapse">
+          <caption className="mb-1.5 text-start font-bold">{t('invoice.productTotals')}</caption>
+          <thead>
+            <tr className="bg-slate-100">
+              <th className={cell}>{t('invoice.product')}</th>
+              <th className={cell}>{t('invoice.totalQuantity')}</th>
+              <th className={cell}>{t('invoice.productTotal')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {productTotals(data.lines).map((p) => (
+              <tr key={p.name_ar}>
+                <td className={cell}>{bilingualName(p)}</td>
+                <td className={cell}>{formatNumber(p.quantity, lang)}</td>
+                <td className={cell}>{money(p.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <section className="ms-auto w-72 space-y-1">
         <div className="flex justify-between">
