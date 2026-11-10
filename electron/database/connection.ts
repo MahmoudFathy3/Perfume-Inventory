@@ -59,6 +59,17 @@ export function encryptInPlace(file: string, key: string): void {
   }
 }
 
+/** تغيير مفتاح تشفير داتا بيز مشفّرة في مكانها (نسخة من جهاز تاني بتتشفّر بمفتاح الجهاز ده) */
+export function rekeyInPlace(file: string, oldKey: string, newKey: string): void {
+  if (!/^[0-9a-f]{64}$/.test(newKey)) throw new Error('INVALID_DB_KEY')
+  const conn = createDatabase(file, {}, oldKey)
+  try {
+    conn.pragma(`rekey = "x'${newKey}'"`)
+  } finally {
+    conn.close()
+  }
+}
+
 export function openDb(file: string, key?: string): Db {
   db = createDatabase(file, {}, key)
   db.pragma('foreign_keys = ON')

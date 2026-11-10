@@ -375,3 +375,49 @@ test('استرجاع على جهاز جديد: نسخة + خزنتها + كلم�
   b.session.lock()
   assert.throws(() => parseVault('{"version":2}'), /INVALID_VAULT/)
 })
+
+test('استيراد نسخة من جهاز تاني والبرنامج متسطّب بكلمة سر تانية: بكلمة سر الجهاز القديم أو مفتاح استرجاعه، وكلمة سر الجهاز الجديد بتفضل زي ما هي', () => {
+  // الجهاز القديم: نسخة + خزنتها
+  const a = makeSession('f1')
+  const recoveryA = a.session.setup(PASSWORD)
+  getDb().prepare("INSERT INTO settings(key, value) VALUES ('shop_name', 'الجهاز القديم')").run()
+  const out = path.join(a.folder, 'old.sqlite')
+  backup.exportTo(out, a.dbPath, (to) => a.session.exportVault(to))
+  a.session.lock()
+  const vaultA = parseVault(fs.readFileSync(backup.vaultCopyPath(out), 'utf8'))
+
+  // الجهاز الجديد: متسطّب بكلمة سر تانية والاستيراد العادي بيرفض النسخة
+  const b = makeSession('f2')
+  const PASSWORD_B = 'another pass 2'
+  b.session.setup(PASSWORD_B)
+  getDb().prepare("INSERT INTO settings(key, value) VALUES ('shop_name', 'الجهاز الجديد')").run()
+  assert.equal(err(() => backup.importFrom(out, b.dbPath, b.session.dbKey())), 'BACKUP_KEY_MISMATCH')
+
+  // كلمة سر غلط (حتى كلمة سر الجهاز الجديد) بتترفض والداتا زي ما هي
+  assert.equal(err(() => b.session.foreignBackupKey(vaultA, PASSWORD_B)), 'BACKUP_WRONG_PASSWORD')
+  assert.equal(err(() => b.session.foreignBackupKey(vaultA, '')), 'BACKUP_WRONG_PASSWORD')
+  assert.deepEqual(getDb().prepare('SELECT value FROM settings WHERE key = ?').get('shop_name'), { value: 'الجهاز الجديد' })
+
+  // خزنة نسخة تانية مع الملف ده = مش بتاعته
+  const foreignVault = createVault('some other 3').vault
+  const wrongKey = b.session.foreignBackupKey(foreignVault, 'some other 3')
+  assert.equal(err(() => backup.importForeign(out, wrongKey, b.dbPath, b.session.dbKey())), 'BACKUP_KEY_MISMATCH')
+  assert.ok(!fs.existsSync(`${b.dbPath}.incoming`), 'الملف المؤقت بيتشال')
+
+  // كلمة سر الجهاز القديم: الداتا بتاعته بتيجي وبتتشفّر بمفتاح الجهاز الجديد
+  const keyA = b.session.foreignBackupKey(vaultA, PASSWORD)
+  const { safetyPath } = backup.importForeign(out, keyA, b.dbPath, b.session.dbKey())
+  assert.ok(fs.existsSync(safetyPath), 'نسخة أمان من الداتا القديمة')
+  assert.deepEqual(getDb().prepare('SELECT value FROM settings WHERE key = ?').get('shop_name'), { value: 'الجهاز القديم' })
+
+  // بعد القفل: البرنامج بيتفتح بكلمة سر الجهاز الجديد، والقديمة لأ
+  b.session.lock()
+  assert.equal(err(() => b.session.unlock(PASSWORD)), 'WRONG_PASSWORD')
+  b.session.unlock(PASSWORD_B)
+  assert.deepEqual(getDb().prepare('SELECT value FROM settings WHERE key = ?').get('shop_name'), { value: 'الجهاز القديم' })
+
+  // مفتاح استرجاع الجهاز القديم بيفتح النسخة برضه
+  assert.equal(b.session.foreignBackupKey(vaultA, recoveryA.toLowerCase()), keyA)
+  b.session.lock()
+  assert.equal(err(() => b.session.foreignBackupKey(vaultA, PASSWORD)), 'LOCKED', 'لازم البرنامج يكون مفتوح')
+})

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { DataTransfer } from '@shared/types'
-import { closeDb, createDatabase, encryptInPlace, execute, getDb, isPlaintextDb, openDb, queryAll } from '../../database/connection'
+import { closeDb, createDatabase, encryptInPlace, execute, getDb, isPlaintextDb, openDb, queryAll, rekeyInPlace } from '../../database/connection'
 import type { Db } from '../../database/connection'
 import { migrate } from '../../database/migrate'
 import { AppError } from '../../lib/errors'
@@ -62,6 +62,33 @@ export function importFrom(srcPath: string, currentDbPath: string, key?: string)
 
   openDb(currentDbPath, key)
   migrate(getDb()) // لو النسخة قديمة نحدّثها لآخر هيكل
+  logTransfer('import', srcPath, 'success')
+  return { safetyPath }
+}
+
+/**
+ * استيراد نسخة من جهاز تاني (مشفّرة بمفتاح الجهاز ده): foreignKey = مفتاحها اللي طلع من خزنتها بكلمة سرها.
+ * النسخة بتتنسخ جنب الداتا بيز وبيتغيّر مفتاحها لمفتاح الجهاز ده، وبعدين بتحل محل الداتا الحالية (بعد نسخة أمان منها).
+ * كلمة سر الجهاز ده بتفضل زي ما هي.
+ */
+export function importForeign(srcPath: string, foreignKey: string, currentDbPath: string, key: string): { safetyPath: string } {
+  validateDbFile(srcPath, foreignKey) // الخزنة دي مش بتاعة النسخة دي = BACKUP_KEY_MISMATCH
+  const incoming = `${currentDbPath}.incoming`
+  fs.copyFileSync(srcPath, incoming)
+  try {
+    rekeyInPlace(incoming, foreignKey, key)
+    validateDbFile(incoming, key)
+  } catch (e) {
+    fs.rmSync(incoming, { force: true })
+    throw e
+  }
+
+  const safetyPath = path.join(path.dirname(currentDbPath), `before-import-${stamp()}.sqlite`)
+  closeDb()
+  fs.copyFileSync(currentDbPath, safetyPath)
+  fs.renameSync(incoming, currentDbPath)
+  openDb(currentDbPath, key)
+  migrate(getDb())
   logTransfer('import', srcPath, 'success')
   return { safetyPath }
 }

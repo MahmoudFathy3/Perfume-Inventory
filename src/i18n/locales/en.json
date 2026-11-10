@@ -303,7 +303,14 @@
     "appNameDesc": "Current name: {{name}}",
     "appName": "App name",
     "appNameNote": "Shown in the sidebar, login screen, splash screen and window title. Leave it empty to use the default name.",
-    "appNameReset": "Default name"
+    "appNameReset": "Default name",
+    "foreignTitle": "Backup from another device",
+    "foreignNote": "This backup was made on another device with a different password. Enter the password that device had when the backup was made, and the app will open it and move it to this device.",
+    "foreignSecret": "Old device password (or its recovery key)",
+    "foreignSecretHint": "If you don’t remember the password, enter the recovery key the old device showed you (XXXX-XXXX-...).",
+    "foreignNoVault": "The vault file (same name as the backup, ending in .vault.json) isn’t next to the backup: you’ll be asked to pick it after entering the password.",
+    "foreignKeepPassword": "This device’s data will be replaced by the backup (a safety copy is made first). This device’s password stays the same, and the app restarts.",
+    "foreignImport": "Open backup and replace"
   },
   "errors": {
     "UNKNOWN": "Unexpected error",
@@ -363,7 +370,7 @@
     "NOT_SETUP": "No password has been set yet",
     "INVALID_IDLE": "Invalid auto-lock time",
     "PASSWORD_MISMATCH": "The two passwords do not match",
-    "BACKUP_KEY_MISMATCH": "This backup belongs to a different installation and cannot be opened here",
+    "BACKUP_KEY_MISMATCH": "This backup doesn’t open with this vault: make sure the .vault.json file is the one made with this exact backup",
     "AUTO_BACKUP_FAILED": "Automatic backup failed. Make sure the folder exists (or the drive is connected) and has free space",
     "NOT_WAREHOUSE": "This page is for external warehouses only. Switch to one from the sidebar.",
     "PARTNER_INVOICE_PAID": "The partner already paid part of this transfer’s invoice: delete those payments from their statement in the main store first",
@@ -382,7 +389,10 @@
     "NO_STOCK_LINES": "This invoice has no products from your stock to record as a sale",
     "STORE_ONLY": "Custom invoices are only available in your own stock and partnerships",
     "CAPTURE_FAILED": "Couldn’t create the invoice image. Try PDF",
-    "INVALID_PHONE": "Invalid phone number"
+    "INVALID_PHONE": "Invalid phone number",
+    "BACKUP_WRONG_PASSWORD": "Wrong backup password or recovery key (enter the old device’s password, not this one’s)",
+    "IMPORT_EXPIRED": "Pick the backup file again from the import button",
+    "INVALID_VAULT_FILE": "This vault file isn’t valid: pick the .vault.json file that was made with the backup"
   },
   "app": {
     "name": "Perfume Inventory"
