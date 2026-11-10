@@ -1,7 +1,8 @@
 import { ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Button, Field, Modal, NumberInput } from '@/shared/components/ui'
+import { useWorkspaces } from '@/features/workspaces'
+import { Alert, Button, Field, Modal, NumberInput, Segmented } from '@/shared/components/ui'
 import { useQuery } from '@/shared/hooks/useQuery'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { formatMoney } from '@/shared/utils/format'
@@ -22,11 +23,15 @@ export function ToSaleDialog({ invoiceId, onDone, onClose }: ToSaleDialogProps) 
   const money = (v: number) => formatMoney(v, i18n.language)
   const { data: invoice } = useQuery(() => freeInvoicesApi.get({ id: invoiceId }), [invoiceId])
   const [paid, setPaid] = useState('')
+  // في الشراكة: الشريك اللي باع (زي أي فاتورة بيع)
+  const { active } = useWorkspaces()
+  const partners = active.kind === 'partnership' ? active.partners : []
+  const [partnerId, setPartnerId] = useState('')
   const stock = invoice?.items.filter((l) => l.item_id !== null) ?? []
   const saleTotal = stock.reduce((sum, l) => sum + l.quantity * l.unit_price, 0)
 
   const { submit, saving } = useSubmit(async () => {
-    const saleId = await freeInvoicesApi.toSale({ id: invoiceId, paid, notes: t('freeInvoices.saleNote', { id: invoiceId }) })
+    const saleId = await freeInvoicesApi.toSale({ id: invoiceId, paid, partner_id: partnerId ? Number(partnerId) : null, notes: t('freeInvoices.saleNote', { id: invoiceId }) })
     onDone(saleId)
   })
 
@@ -39,7 +44,7 @@ export function ToSaleDialog({ invoiceId, onDone, onClose }: ToSaleDialogProps) 
             {stock.map((l) => (
               <li key={l.id} className="flex justify-between gap-3 px-3 py-2">
                 <span>
-                  {l.name} <small className="text-slate-500">({t(`condition.${l.condition ?? 'new'}`)})</small> × {l.quantity}
+                  {l.name} <small className="text-slate-500">({t(`condition.${l.condition}`)})</small> × {l.quantity}
                 </span>
                 <strong className="tabular-nums">{money(l.quantity * l.unit_price)}</strong>
               </li>
@@ -49,6 +54,12 @@ export function ToSaleDialog({ invoiceId, onDone, onClose }: ToSaleDialogProps) 
               <span className="tabular-nums">{money(saleTotal)}</span>
             </li>
           </ul>
+          {partners.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-semibold text-slate-500">{t('sales.soldBy')}</span>
+              <Segmented value={partnerId} onChange={setPartnerId} options={partners.map((p) => ({ value: String(p.id), label: p.name }))} />
+            </div>
+          )}
           <Field label={t('sales.paidNow')}>
             <NumberInput value={paid} placeholder={t('sales.paidAll')} onChange={(e) => setPaid(e.target.value)} />
           </Field>

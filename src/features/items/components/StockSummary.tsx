@@ -13,6 +13,8 @@ const tone: Record<Condition, string> = {
 export function StockSummary({ condition, item }: { condition: Condition; item: Item }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
+  const quantity = item[`${condition}_quantity`]
+  // كل سعر ومعاه إجمالي فلوس القطع اللي في المخزن بيه (العدد × السعر)
   const rows = [
     { label: t('details.avgCost'), value: item[`${condition}_purchase_price`] },
     { label: t('items.sellingPrice'), value: item[`${condition}_selling_price`] },
@@ -22,13 +24,17 @@ export function StockSummary({ condition, item }: { condition: Condition; item: 
     <section className={clsx('rounded-2xl border px-[18px] py-3.5', tone[condition])}>
       <header className="mb-2.5 flex items-center justify-between">
         <ConditionBadge condition={condition} />
-        <strong className="text-3xl text-slate-900">{formatNumber(item[`${condition}_quantity`], lang)}</strong>
+        <strong className="text-3xl text-slate-900">{formatNumber(quantity, lang)}</strong>
       </header>
       <dl className="grid grid-cols-3 gap-2">
         {rows.map((r) => (
           <div key={r.label}>
             <dt className="text-xs opacity-80">{r.label}</dt>
             <dd className="mt-0.5 font-bold text-slate-900">{formatMoney(r.value, lang)}</dd>
+            <dd className="mt-1 border-t border-current/20 pt-1 text-xs">
+              <span className="opacity-80">{t('details.piecesTotal', { count: quantity })}</span>
+              <strong className="block text-sm text-slate-900">{formatMoney(quantity * r.value, lang)}</strong>
+            </dd>
           </div>
         ))}
       </dl>

@@ -21,7 +21,7 @@ const LINKS: { to: string; key: string; icon: LucideIcon; kinds: WorkspaceKind[]
   { to: '/categories', key: 'categories', icon: FolderTree, kinds: STORES },
   { to: '/purchases', key: 'purchases', icon: ShoppingCart, kinds: STORES },
   { to: '/sales', key: 'sales', icon: Banknote, kinds: STORES },
-  { to: '/free-invoices', key: 'freeInvoices', icon: FileText, kinds: ['personal'] },
+  { to: '/free-invoices', key: 'freeInvoices', icon: FileText, kinds: STORES },
   { to: '/customers', key: 'customers', icon: Users, kinds: STORES },
   { to: '/returns', key: 'returns', icon: Undo2, kinds: STORES },
   { to: '/transfers', key: 'transfers', icon: ArrowLeftRight, kinds: STORES },

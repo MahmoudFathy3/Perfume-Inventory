@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Field, Input } from '@/shared/components/ui'
+import { Button, Field, PasswordInput } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { authApi } from '../api/auth.api'
@@ -25,13 +25,13 @@ export function ChangePasswordForm() {
       <h3 className="mb-2 font-bold">{t('auth.changePassword')}</h3>
       <div>
         <Field label={t('auth.currentPassword')}>
-          <Input type="password" autoComplete="current-password" value={values.current} onChange={set('current')} />
+          <PasswordInput autoComplete="current-password" value={values.current} onChange={set('current')} />
         </Field>
         <Field label={t('auth.newPassword')}>
-          <Input type="password" autoComplete="new-password" value={values.next} onChange={set('next')} />
+          <PasswordInput autoComplete="new-password" value={values.next} onChange={set('next')} />
         </Field>
         <Field label={t('auth.confirmPassword')}>
-          <Input type="password" autoComplete="new-password" value={values.confirm} onChange={set('confirm')} />
+          <PasswordInput autoComplete="new-password" value={values.confirm} onChange={set('confirm')} />
         </Field>
       </div>
       <Button type="submit" variant="primary" disabled={saving || !values.current || !values.next}>{t('auth.changePasswordAction')}</Button>

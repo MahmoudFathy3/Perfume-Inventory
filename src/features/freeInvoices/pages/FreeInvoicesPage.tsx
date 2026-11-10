@@ -24,11 +24,11 @@ import { FreeInvoicePaymentsModal } from '../components/FreeInvoicePaymentsModal
 import { FreeInvoicesTable } from '../components/FreeInvoicesTable'
 import { ToSaleDialog } from '../components/ToSaleDialog'
 
-/** الفواتير الحرّة: في المخزون الفعلي بس */
+/** الفواتير الحرّة: في المخزون الفعلي والشراكات (كل مخزن فواتيره)، مش في المخزن الخارجي */
 export default function FreeInvoicesPage() {
   const { t } = useTranslation()
   const { active } = useWorkspaces()
-  if (active.kind !== 'personal') {
+  if (active.kind === 'warehouse') {
     return (
       <>
         <PageHeader title={t('freeInvoices.title')} />
@@ -36,7 +36,8 @@ export default function FreeInvoicesPage() {
       </>
     )
   }
-  return <FreeInvoices />
+  // key: بتبدأ من جديد لما المخزن يتغيّر (فواتيره ومنتجاته وعملاؤه غير)
+  return <FreeInvoices key={active.id} />
 }
 
 /**

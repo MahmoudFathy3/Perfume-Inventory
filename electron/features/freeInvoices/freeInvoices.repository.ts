@@ -18,7 +18,7 @@ export interface HeaderRow {
 
 export interface LineRow {
   item_id: number | null
-  condition: Condition | null
+  condition: Condition
   name: string
   quantity: number
   unit_price: number
@@ -28,7 +28,7 @@ const PAID = 'COALESCE((SELECT SUM(amount) FROM free_invoice_payments WHERE invo
 
 // اسم العميل: المتسجل لو موجود، وإلا المكتوب. ومعاه أسماء البنود علشان البحث يلاقي الفاتورة باسم أي منتج فيها
 const SELECT = `
-  SELECT f.id, f.invoice_date, f.customer_id, COALESCE(cu.name, f.customer_name) AS customer_name,
+  SELECT f.id, f.workspace_id, f.invoice_date, f.customer_id, COALESCE(cu.name, f.customer_name) AS customer_name,
          COALESCE(f.customer_phone, cu.phone) AS customer_phone, f.price_type, f.shipping_cost, f.discount, f.total, f.notes, f.sale_id,
          ROUND(${PAID}, 2) AS paid, MAX(0, ROUND(f.total - ${PAID}, 2)) AS remaining,
          (SELECT COUNT(*) FROM free_invoice_items WHERE invoice_id = f.id) AS lines_count,
@@ -38,17 +38,18 @@ const SELECT = `
 
 type ListOptions = { search?: string } & DateFilter
 
-export function findPage(opts: ListOptions, page: PageParams): Page<FreeInvoice> {
+/** فواتير المخزن ده بس */
+export function findPage(workspaceId: number, opts: ListOptions, page: PageParams): Page<FreeInvoice> {
   const { where, params } = searchClause(['customer_name', 'customer_phone', 'notes', 'line_names'], opts.search, 'AND')
   const dates = dateClause('invoice_date', opts)
   return queryPage<FreeInvoice>(
-    `SELECT * FROM (${SELECT}) WHERE 1 = 1 ${where} ${dates.where} ORDER BY invoice_date DESC, id DESC`,
-    { ...params, ...dates.params },
+    `SELECT * FROM (${SELECT}) WHERE workspace_id = @ws ${where} ${dates.where} ORDER BY invoice_date DESC, id DESC`,
+    { ...params, ...dates.params, ws: workspaceId },
     page
   )
 }
 
-export const findById = (id: number) => queryOne<FreeInvoice>(`${SELECT} WHERE f.id = ?`, [id])
+export const findById = (id: number, workspaceId: number) => queryOne<FreeInvoice>(`${SELECT} WHERE f.id = ? AND f.workspace_id = ?`, [id, workspaceId])
 
 export const findLines = (id: number) =>
   queryAll<FreeInvoiceLine>(
@@ -68,11 +69,11 @@ export const sumPayments = (id: number): number =>
 const HEADER_SET = `invoice_date = @invoice_date, customer_id = @customer_id, customer_name = @customer_name, customer_phone = @customer_phone,
   price_type = @price_type, shipping_cost = @shipping_cost, discount = @discount, total = @total, notes = @notes`
 
-export const insertHeader = (h: HeaderRow) =>
+export const insertHeader = (workspaceId: number, h: HeaderRow) =>
   execute(
-    `INSERT INTO free_invoices(invoice_date, customer_id, customer_name, customer_phone, price_type, shipping_cost, discount, total, notes)
-     VALUES (@invoice_date, @customer_id, @customer_name, @customer_phone, @price_type, @shipping_cost, @discount, @total, @notes)`,
-    { ...h }
+    `INSERT INTO free_invoices(workspace_id, invoice_date, customer_id, customer_name, customer_phone, price_type, shipping_cost, discount, total, notes)
+     VALUES (@workspace_id, @invoice_date, @customer_id, @customer_name, @customer_phone, @price_type, @shipping_cost, @discount, @total, @notes)`,
+    { ...h, workspace_id: workspaceId }
   )
 
 export const updateHeader = (id: number, h: HeaderRow) => void execute(`UPDATE free_invoices SET ${HEADER_SET} WHERE id = @id`, { ...h, id })

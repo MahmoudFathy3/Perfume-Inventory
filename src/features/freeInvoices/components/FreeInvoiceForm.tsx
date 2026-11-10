@@ -5,6 +5,7 @@ import type { Condition, Customer, FreeInvoiceInput, FreeInvoiceWithLines, Item,
 import { PRICE_TYPES } from '@/shared/constants'
 import { CustomerSelect } from '@/shared/components/data/CustomerSelect'
 import { ProductSelect } from '@/shared/components/data/ProductSelect'
+import { productTotals } from '@/shared/components/invoice/productTotals'
 import { Alert, Button, Field, FormActions, Input, NumberInput, Segmented, Select } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { formatMoney, todayString } from '@/shared/utils/format'
@@ -26,7 +27,7 @@ const toLines = (invoice: FreeInvoiceWithLines): Line[] =>
   invoice.items.map((l) => ({
     key: nextKey++,
     item_id: l.item_id ?? '',
-    condition: l.condition ?? 'new',
+    condition: l.condition,
     name: l.item_id ? '' : l.name,
     quantity: String(l.quantity),
     unit_price: String(l.unit_price)
@@ -89,6 +90,10 @@ export function FreeInvoiceForm({ items, customers, onCreateCustomer, initial, o
     )
   }
 
+  // إجمالي كل منتج (عدده كله وفلوسه) من السطور اللي ليها اسم
+  const totals = productTotals(
+    lines.map((l) => ({ name_ar: itemById(l.item_id)?.name_ar ?? l.name, quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0 }))
+  )
   const subtotal = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.unit_price) || 0), 0)
   const shipping = Number(header.shipping) || 0
   const discount = Number(header.discount) || 0
@@ -108,7 +113,7 @@ export function FreeInvoiceForm({ items, customers, onCreateCustomer, initial, o
       ...(initial ? {} : { paid: header.paid }),
       items: lines
         .filter((l) => l.item_id || l.name.trim())
-        .map((l) => ({ item_id: l.item_id || null, condition: l.item_id ? l.condition : null, name: l.name, quantity: l.quantity, unit_price: l.unit_price }))
+        .map((l) => ({ item_id: l.item_id || null, condition: l.condition, name: l.name, quantity: l.quantity, unit_price: l.unit_price }))
     })
   )
 
@@ -153,7 +158,6 @@ export function FreeInvoiceForm({ items, customers, onCreateCustomer, initial, o
           </thead>
           <tbody className="divide-y divide-slate-100">
             {lines.map((l) => {
-              const item = itemById(l.item_id)
               const value = l.item_id ? { item_id: l.item_id, name: '', label: initial?.items.find((x) => x.item_id === l.item_id)?.name } : { item_id: '' as const, name: l.name }
               return (
                 <tr key={l.key}>
@@ -168,14 +172,10 @@ export function FreeInvoiceForm({ items, customers, onCreateCustomer, initial, o
                     <small className="mt-1 block text-slate-500">{l.item_id ? t('freeInvoices.fromStock') : l.name ? t('freeInvoices.external') : ''}</small>
                   </td>
                   <td className="px-2 py-2 align-top">
-                    {item ? (
-                      <Select value={l.condition} onChange={(e) => update(l.key, { condition: e.target.value as Condition })}>
-                        <option value="new">{t('condition.new')}</option>
-                        <option value="damaged">{t('condition.damaged')}</option>
-                      </Select>
-                    ) : (
-                      <span className="block py-2 text-slate-400">—</span>
-                    )}
+                    <Select value={l.condition} onChange={(e) => update(l.key, { condition: e.target.value as Condition })}>
+                      <option value="new">{t('condition.new')}</option>
+                      <option value="damaged">{t('condition.damaged')}</option>
+                    </Select>
                   </td>
                   <td className="px-2 py-2 align-top">
                     <NumberInput value={l.quantity} step={1} min={1} onChange={(e) => update(l.key, { quantity: e.target.value })} />
@@ -196,6 +196,19 @@ export function FreeInvoiceForm({ items, customers, onCreateCustomer, initial, o
         </table>
       </div>
       <Button className="mt-2" size="sm" icon={Plus} onClick={() => setLines((all) => [...all, emptyLine()])}>{t('freeInvoices.addLine')}</Button>
+      {totals.length > 0 && (
+        <section className="mt-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+          <h3 className="mb-2 font-bold">{t('invoice.productTotals')}</h3>
+          <ul className="divide-y divide-slate-100">
+            {totals.map((p) => (
+              <li key={p.name_ar} className="flex justify-between gap-3 py-1.5">
+                <span>{p.name_ar} <span className="text-slate-500">× {p.quantity}</span></span>
+                <strong className="tabular-nums">{money(p.total)}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {linkedToSale && <Alert tone="info">{t('freeInvoices.linkedEditNote', { id: initial!.sale_id })}</Alert>}
 
       <div className="mt-4 grid grid-cols-3 gap-x-4">

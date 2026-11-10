@@ -2,7 +2,7 @@ import { Copy, KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { invoke } from '@/shared/api/ipc'
-import { Alert, Button, Field, Input } from '@/shared/components/ui'
+import { Alert, Button, Field, PasswordInput } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { authApi } from '../api/auth.api'
@@ -39,7 +39,7 @@ export function NewRecoveryKeyPanel() {
       <h3 className="mb-2 font-bold">{t('auth.newRecoveryKey')}</h3>
       <p className="mb-2 text-sm text-slate-500">{t('auth.newRecoveryKeyNote')}</p>
       <Field label={t('auth.currentPassword')}>
-        <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <PasswordInput autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
       <Button type="submit" icon={KeyRound} disabled={saving || !password}>{t('auth.newRecoveryKeyAction')}</Button>
     </form>
