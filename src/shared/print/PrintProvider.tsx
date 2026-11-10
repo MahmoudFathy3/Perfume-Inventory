@@ -8,6 +8,8 @@ interface PrintApi {
   print: (content: ReactNode) => Promise<void>
   /** حفظ كـ PDF (بيطلب مكان الحفظ) */
   savePdf: (content: ReactNode, defaultName: string) => Promise<void>
+  /** بيعرض المحتوى في منطقة الطباعة وبينفّذ action (بتاخد العنصر اللي فيه المحتوى) وبعدين بيشيله */
+  render: <T>(content: ReactNode, action: (root: HTMLElement) => Promise<T>) => Promise<T>
 }
 
 const PrintContext = createContext<PrintApi | null>(null)
@@ -26,11 +28,11 @@ const nextFrames = (count: number) =>
 export function PrintProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<ReactNode>(null)
 
-  const run = useCallback(async (node: ReactNode, action: () => Promise<unknown> | unknown) => {
+  const run = useCallback(async <T,>(node: ReactNode, action: (root: HTMLElement) => Promise<T> | T): Promise<T> => {
     setContent(node)
     await nextFrames(3)
     try {
-      await action()
+      return await action(document.getElementById('print-root')!)
     } finally {
       setContent(null)
     }
@@ -39,7 +41,10 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const api = useMemo<PrintApi>(
     () => ({
       print: (node) => run(node, () => window.print()),
-      savePdf: (node, defaultName) => run(node, () => invoke('print:pdf', { defaultName }))
+      savePdf: async (node, defaultName) => {
+        await run(node, () => invoke('print:pdf', { defaultName }))
+      },
+      render: (node, action) => run(node, action)
     }),
     [run]
   )

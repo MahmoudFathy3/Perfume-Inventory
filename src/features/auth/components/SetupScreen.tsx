@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RotateCcw } from 'lucide-react'
-import { Alert, Button, Field, Input } from '@/shared/components/ui'
+import { Alert, Button, Field, PasswordInput } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { useAuth } from '../AuthProvider'
 import { AuthShell } from './AuthShell'
@@ -26,10 +26,10 @@ export function SetupScreen() {
     <AuthShell title={t('auth.setupTitle')} subtitle={t('auth.setupSubtitle')}>
       <form onSubmit={submit}>
         <Field label={t('auth.password')}>
-          <Input type="password" autoFocus autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput autoFocus autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field label={t('auth.confirmPassword')}>
-          <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <Alert tone="info">{t('auth.setupNote', { min: MIN_PASSWORD_LENGTH })}</Alert>
         <Button type="submit" variant="primary" className="mt-2 w-full" disabled={saving}>{t('auth.setupAction')}</Button>

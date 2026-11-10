@@ -56,6 +56,7 @@ export const fromSale = (s: SaleWithLines): InvoiceDocData => ({
   id: s.id,
   date: s.sale_date,
   party: s.customer_name,
+  phone: s.customer_phone,
   priceType: s.price_type,
   shippingPayer: s.shipping_payer,
   shipping: s.shipping_cost,

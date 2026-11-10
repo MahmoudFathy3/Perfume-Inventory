@@ -533,6 +533,8 @@ export interface Sale {
   id: number
   customer_id: number | null
   customer_name: string | null
+  /** تليفون العميل (لمشاركة الفاتورة على واتساب) */
+  customer_phone: string | null
   /** 1 = العميل شريك (بيتكتب جنب اسمه "(الشريك)") */
   customer_is_partner: number
   /** الشريك اللي عمل الفاتورة (في الشراكات بس) */
@@ -908,7 +910,7 @@ export interface ExportResult {
 /** سطر في فاتورة حرّة: item_id = منتج من المخزون (مبيتخصمش)، فاضي = بند من برّه بالاسم */
 export interface FreeInvoiceLineInput {
   item_id?: number | null
-  /** حالة منتج المخزون (البنود اللي من برّه ملهاش حالة) */
+  /** جديد / تالف (الافتراضي جديد) */
   condition?: Condition | null
   name?: string
   quantity: NumLike
@@ -933,7 +935,7 @@ export interface FreeInvoiceInput {
 export interface FreeInvoiceLine {
   id: number
   item_id: number | null
-  condition: Condition | null
+  condition: Condition
   name: string
   /** الاسم الإنجليزي لمنتج المخزون (للطباعة) */
   name_en: string | null
@@ -950,6 +952,7 @@ export interface FreeInvoicePayment {
 
 export interface FreeInvoice {
   id: number
+  workspace_id: number
   invoice_date: string
   customer_id: number | null
   /** اسم العميل المتسجل أو المكتوب */
@@ -984,6 +987,8 @@ export interface FreeInvoicePaymentInput {
 /** فاتورة بيع حقيقية من بنود المخزون اللي في الفاتورة الحرّة (القطع بتتخصم والربح بيتحسب) */
 export interface FreeInvoiceToSaleInput {
   id: number
+  /** الشريك اللي باع (لازم في الشراكة) */
+  partner_id?: number | null
   /** المدفوع من فاتورة البيع (الافتراضي كلها) */
   paid?: NumLike
   notes?: string

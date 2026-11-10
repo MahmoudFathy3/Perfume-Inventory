@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Field, Input, Modal } from '@/shared/components/ui'
+import { Button, Field, Modal, PasswordInput } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 
 interface PasswordConfirmModalProps {
@@ -36,7 +36,7 @@ export function PasswordConfirmModal({ title, detail, note, confirmLabel, danger
         {detail && <p className="mb-3 font-semibold">{detail}</p>}
         {note && <p className="mb-3 text-sm text-slate-500">{note}</p>}
         <Field label={t('workspaces.passwordPrompt')}>
-          <Input type="password" autoComplete="current-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput autoComplete="current-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <div className="flex justify-end gap-2">
           <Button onClick={onCancel}>{t('common.cancel')}</Button>
