@@ -9,6 +9,13 @@ export interface CleanLine {
   condition: Condition
   quantity: number
   selling_price: number | null
+  /** مخزن تاني (المخزون الفعلي ↔ شراكة) السطر جاي منه. null = مخزن الفاتورة */
+  source: number | null
+  /** سعر التحويل للمخزن التاني (null = سعر البيع) */
+  transfer_price: number | null
+  /** بيتحدد بعد التحويل: المنتج في المخزن التاني، وتكلفة السطر في مخزن الفاتورة (= سعر التحويل) */
+  source_item_id?: number
+  cost?: number
 }
 
 export interface CleanSale {
@@ -23,8 +30,8 @@ export interface CleanSale {
   lines: CleanLine[]
 }
 
-/** في الشراكة لازم نعرف مين من الشركاء اللي باع */
-function cleanPartner(value: unknown): number | null {
+/** في الشراكة لازم نعرف مين من الشركاء اللي باع (أو اشترى في فواتير الشراء). في المخزون الفعلي null */
+export function cleanPartner(value: unknown): number | null {
   const ws = activeWorkspaceId()
   if (findWorkspace(ws)?.kind !== 'partnership') return null
   const id = Number(value)
@@ -50,7 +57,9 @@ export function cleanSale(input: SaleInput): CleanSale {
       item_id: l.item_id,
       condition: parseCondition(l.condition),
       quantity: qty(l.quantity),
-      selling_price: optionalMoney(l.selling_price)
+      selling_price: optionalMoney(l.selling_price),
+      source: l.source_workspace_id && Number(l.source_workspace_id) !== activeWorkspaceId() ? Number(l.source_workspace_id) : null,
+      transfer_price: optionalMoney(l.transfer_price)
     }))
   }
 }

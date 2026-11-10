@@ -8,13 +8,14 @@ import { formatMoney, formatNumber } from '@/shared/utils/format'
 import { CapitalCard } from '../components/CapitalCard'
 import { CopyStockButtons } from '../components/CopyStockButtons'
 import { PartnersShare } from '../components/PartnersShare'
+import { TransfersMoney } from '../components/TransfersMoney'
 import { WorkspacesOverview } from '../components/WorkspacesOverview'
 import { ProfitChart } from '../components/charts/ProfitChart'
 import { SalesPurchasesChart } from '../components/charts/SalesPurchasesChart'
 import { StockConditionChart } from '../components/charts/StockConditionChart'
 import { TopProductsChart } from '../components/charts/TopProductsChart'
-import { DateRangeFilter } from '../components/DateRangeFilter'
-import type { DateRange } from '../components/DateRangeFilter'
+import { DateRangeFilter } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { useDashboard } from '../hooks/useDashboard'
 
 const grid = 'grid gap-3.5'
@@ -67,6 +68,8 @@ function StoreDashboard() {
             <StatCard label={t('dashboard.customersCount')} value={num(s.counts.customers)} sub={current} />
           </div>
 
+          <TransfersMoney />
+
           {/* ===== الفلتر + اللي بيتأثر بيه ===== */}
           <h2 className="mb-3 mt-7">{t('dashboard.periodTitle')} <small className="font-normal text-slate-500">— {t('dashboard.periodNote')}</small></h2>
           <DateRangeFilter range={range} onChange={setRange} />
@@ -74,11 +77,26 @@ function StoreDashboard() {
           <div className={`${grid} my-3.5 grid-cols-[repeat(auto-fill,minmax(200px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]`}>
             <StatCard label={t('dashboard.purchasesTotal')} value={money(s.purchases.total)} sub={t('dashboard.invoicesSub', { count: s.purchases.count })} tone="indigo" />
             <StatCard label={t('dashboard.salesPeriod')} value={money(s.sales.products)} sub={t('dashboard.invoicesSub', { count: s.sales.count })} tone="indigo" />
+            {s.transfer_sales.count > 0 && (
+              <StatCard
+                label={t('dashboard.transferSales')}
+                value={money(s.transfer_sales.total)}
+                sub={`${t('dashboard.transferSalesSub', { count: s.transfer_sales.count, pieces: num(s.transfer_sales.pieces) })} · ${t('dashboard.paidOf', { paid: money(s.transfer_sales.paid), total: money(s.transfer_sales.total) })}`}
+                tone="indigo"
+              />
+            )}
             <StatCard label={t('dashboard.saleReturns')} value={money(s.sales.returns)} sub={t('dashboard.returnsSub', { count: s.sales.returns_count })} tone="indigo" />
             <StatCard label={t('dashboard.shopShipping')} value={money(s.sales.shop_shipping)} sub={t('dashboard.shopShippingSub')} tone="slate" />
             <StatCard label={t('dashboard.collected')} value={money(s.collected)} sub={t('dashboard.collectedSub')} tone="green" />
             <StatCard label={t('dashboard.invoicesCount')} value={`${num(s.purchases.count)} / ${num(s.sales.count)}`} />
             <StatCard label={t('dashboard.actualProfit')} value={money(s.profit)} tone="green" big />
+            <StatCard
+              label={t('dashboard.expenses')}
+              value={money(s.expenses.total)}
+              sub={s.expenses.deducted === s.expenses.total ? t('dashboard.expensesSub', { count: s.expenses.count }) : t('dashboard.expensesDeductedSub', { amount: money(s.expenses.deducted) })}
+              tone="slate"
+            />
+            <StatCard label={t('dashboard.netProfit')} value={money(s.net_profit)} sub={t('dashboard.netProfitSub')} tone="green" big />
           </div>
 
           <PartnersShare summary={s} />

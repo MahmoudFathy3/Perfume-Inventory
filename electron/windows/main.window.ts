@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import iconPath from '../../resources/icon.png?asset'
+import { DEV_ARG, IS_DEV } from '../config/runtime'
 import { APP_NAME, MAIN_WINDOW } from './constants'
 import { appEntryUrl, devToolsEnabled, lockDownWebContents } from './security'
 
@@ -15,7 +16,7 @@ export function createMainWindow(): MainWindowHandle {
   const window = new BrowserWindow({
     ...MAIN_WINDOW,
     show: false,
-    title: APP_NAME,
+    title: IS_DEV ? `${APP_NAME} [DEV]` : APP_NAME,
     icon: iconPath,
     backgroundColor: '#f1f5f9',
     webPreferences: {
@@ -26,7 +27,8 @@ export function createMainWindow(): MainWindowHandle {
       webSecurity: true,
       allowRunningInsecureContent: false,
       spellcheck: false,
-      devTools: devToolsEnabled()
+      devTools: devToolsEnabled(),
+      additionalArguments: IS_DEV ? [DEV_ARG] : []
     }
   })
   const indexHtml = path.join(__dirname, '../renderer/index.html')

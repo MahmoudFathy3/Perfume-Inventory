@@ -2,6 +2,7 @@
 export const CHART_COLORS = {
   sales: '#0d9488',
   purchases: '#6366f1',
+  transfer_sales: '#f59e0b',
   up: '#16a34a',
   down: '#e11d48',
   new: '#16a34a',

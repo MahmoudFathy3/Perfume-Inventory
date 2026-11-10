@@ -10,6 +10,8 @@ import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney } from '@/shared/utils/format'
+import { DateRangeFilter, FilterGroup } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { customersApi } from '../api/customers.api'
 import { CollectDialog } from '../components/CollectDialog'
 import type { CollectValues } from '../components/CollectDialog'
@@ -27,7 +29,8 @@ export default function CustomersPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [editing, setEditing] = useState<{ row: CustomerSummary | null } | null>(null)
   const [collecting, setCollecting] = useState<CustomerSummary | null>(null)
-  const pagination = useCustomersPage(search, filter === 'owing')
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
+  const pagination = useCustomersPage(search, filter === 'owing', range)
   const { reload } = pagination
 
   async function save(values: { name: string; phone: string }) {
@@ -59,19 +62,24 @@ export default function CustomersPage() {
     <>
       <PageHeader title={t('customers.title')}>
         <SearchBar value={search} onChange={setSearch} />
-        <ExportMenu target={{ dataset: 'customers', search }} />
+        <ExportMenu target={{ dataset: 'customers', search, ...range }} />
         <Button variant="primary" icon={Plus} onClick={() => setEditing({ row: null })}>{t('customers.add')}</Button>
       </PageHeader>
 
-      <div className="mb-4 flex">
-        <Segmented
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'owing', label: t('customers.filterOwing') },
-            { value: 'all', label: t('customers.filterAll') }
-          ]}
-        />
+      <div className="mb-4">
+        <DateRangeFilter range={range} onChange={setRange}>
+          <FilterGroup label={t('payment.status')}>
+            <Segmented
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: 'owing', label: t('customers.filterOwing') },
+                { value: 'all', label: t('customers.filterAll') }
+              ]}
+            />
+          </FilterGroup>
+        </DateRangeFilter>
+        {(range.from || range.to) && <p className="mt-2 text-sm text-slate-500">{t('customers.rangeNote')}</p>}
       </div>
 
       <CustomersTable

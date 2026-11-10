@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Card, Field, Input } from '@/shared/components/ui'
 import { daysAgoString, monthStartString, todayString } from '@/shared/utils/format'
@@ -8,8 +9,28 @@ export interface DateRange {
   to: string
 }
 
-/** فلتر الفترة: من تاريخ / إلى تاريخ + اختصارات سريعة */
-export function DateRangeFilter({ range, onChange }: { range: DateRange; onChange: (range: DateRange) => void }) {
+/**
+ * فلتر زيادة جوه كارت الفترة (عنوان + اختيار) بنفس شكل خانات التاريخ.
+ * div مش label: الـ label اللي جواه زراير (Segmented) بيدوس على أول زرار لما تضغط على العنوان.
+ */
+export function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-semibold text-slate-500">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+interface DateRangeFilterProps {
+  range: DateRange
+  onChange: (range: DateRange) => void
+  /** فلاتر زيادة بتظهر في نفس الكارت قبل التاريخ (مثلًا الشريك) */
+  children?: ReactNode
+}
+
+/** فلتر الفترة: من تاريخ / إلى تاريخ + اختصارات سريعة، ومعاه فلاتر الصفحة التانية في نفس السطر */
+export function DateRangeFilter({ range, onChange, children }: DateRangeFilterProps) {
   const { t } = useTranslation()
   const today = todayString()
 
@@ -26,6 +47,7 @@ export function DateRangeFilter({ range, onChange }: { range: DateRange; onChang
 
   return (
     <Card className="flex flex-wrap items-end gap-3.5 !py-3.5">
+      {children}
       <Field label={t('common.from')} className="!mb-0">
         <Input type="date" value={range.from} onChange={(e) => setFrom(e.target.value)} />
       </Field>

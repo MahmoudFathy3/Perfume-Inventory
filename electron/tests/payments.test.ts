@@ -67,7 +67,7 @@ test('الدفع الجزئي: المتبقي على العميل والتحصي
 
   // كشف الحساب والرئيسية
   const statement = customers.getStatement({ id: cust })
-  assert.deepEqual(statement.totals, { total: 3000, paid: 3000, returns: 0, remaining: 0 })
+  assert.deepEqual(statement.totals, { total: 3000, paid: 3000, returns: 0, remaining: 0, credit: 0, refunded: 0 })
   assert.deepEqual([statement.sales.length, statement.payments.length], [2, 4])
   const april = dashboard.summary({ from: '2026-04-01', to: '2026-04-30' })
   assert.equal(april.collected, 3000)
@@ -100,7 +100,7 @@ test('الدفع الجزئي: المتبقي على العميل والتحصي
   assert.equal(one<{ c: number }>('SELECT COUNT(*) c FROM sale_payments WHERE sale_id = ?', s2).c, 0)
   assert.equal(err(() => customers.removeCustomer({ id: cust })), 'SQLITE_CONSTRAINT_FOREIGNKEY')
   customers.updateCustomer({ id: cust, name: 'عميل آجل (معدل)', phone: '' })
-  assert.deepEqual(customers.getStatement({ id: cust }).customer, { id: cust, name: 'عميل آجل (معدل)', phone: null })
+  assert.deepEqual(customers.getStatement({ id: cust }).customer, { id: cust, name: 'عميل آجل (معدل)', phone: null, is_partner: 0 })
 })
 
 // ============================================================

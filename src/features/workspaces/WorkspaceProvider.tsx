@@ -12,6 +12,8 @@ interface WorkspaceContextValue {
   workspaces: Workspace[]
   /** المساحة اللي شغالين عليها دلوقتي */
   active: Workspace
+  /** صاحب المخزون الفعلي (null = لسه متحددش) */
+  owner: string | null
   /** اسم المساحة اللي بيظهر للمستخدم */
   label: (ws: Pick<Workspace, 'kind' | 'name' | 'partners'>) => string
   /** التبديل لمساحة تانية: كل الصفحات بتتحمّل من جديد على بياناتها */
@@ -34,8 +36,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const toast = useToast()
   const navigate = useNavigate()
   const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null)
+  const [owner, setOwner] = useState<string | null>(null)
 
-  const reload = useCallback(async () => setWorkspaces(await workspacesApi.list()), [])
+  const reload = useCallback(async () => {
+    const [list, ownerName] = await Promise.all([workspacesApi.list(), workspacesApi.owner()])
+    setOwner(ownerName)
+    setWorkspaces(list)
+  }, [])
   useEffect(() => {
     reload().catch(toast.fail)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,6 +55,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return {
       workspaces,
       active,
+      owner,
       label,
       reload,
       activate: async (id) => {
@@ -57,7 +65,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         toast.info(t('workspaces.switched', { name: label(workspaces.find((w) => w.id === id) ?? active) }))
       }
     }
-  }, [workspaces, reload, navigate, toast, t])
+  }, [workspaces, owner, reload, navigate, toast, t])
 
   return value ? <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider> : null
 }

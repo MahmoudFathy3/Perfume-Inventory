@@ -1,12 +1,15 @@
-import type { PageParams, ReturnInput } from '@shared/types'
+import type { DateFilter, PageParams, ReturnInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError, money, parseCondition, qty, round2, today } from '../../lib/errors'
 import * as itemStock from '../items/stock.repository'
+import * as paymentsRepo from '../payments/payments.repository'
+import { findById as findSale, isPartnerTransferSale } from '../sales/sales.repository'
+import { returnableToSource, returnToSaleSource, undoReturnToSaleSource } from '../transfers/transfers.sales'
 import * as repo from './returns.repository'
 
-export const listReturns = (p: { search?: string }) => repo.findAll(p)
-export const pageReturns = (p: { search?: string } & PageParams) => repo.findPage(p, p)
+export const listReturns = (p: { search?: string } & DateFilter) => repo.findAll(p)
+export const pageReturns = (p: { search?: string } & DateFilter & PageParams) => repo.findPage(p, p)
 export const getReturn = ({ id }: { id: number }) => repo.findById(id)
 
 /** مرتجع بيع: القطع بترجع للمخزن | مرتجع شراء: القطع بتخرج من المخزن */
@@ -16,6 +19,8 @@ export function createReturn(input: ReturnInput): number {
   const invoiceId = type === 'sale' ? input.sale_id : input.purchase_id
   if (!invoiceId) throw new AppError('INVOICE_REQUIRED')
   if (!Array.isArray(input.items) || input.items.length === 0) throw new AppError('NO_LINES')
+  // فاتورة الشريك (من تحويل): القطع في الشراكة مش هنا، فالرجوع بيكون بتعديل التحويل
+  if (type === 'sale' && isPartnerTransferSale(invoiceId)) throw new AppError('SALE_FROM_TRANSFER')
 
   return getDb().transaction(() => {
     const returnId = repo.insertHeader({
@@ -35,6 +40,16 @@ export function createReturn(input: ReturnInput): number {
 
       const available = repo.originalQuantity(type, invoiceId, l.item_id) - repo.returnedQuantity(type, invoiceId, l.item_id)
       if (quantity > available) throw new AppError('RETURN_EXCEEDS')
+
+      // قطع جاية من مخزن تاني بترجع له مباشرة (والتحويل بيقل)، من غير ما تدخل مخزن الفاتورة
+      const toSource = type === 'sale' && !!l.to_source
+      if (toSource) {
+        if (quantity > returnableToSource(invoiceId, l.item_id, condition)) throw new AppError('RETURN_EXCEEDS_SOURCE')
+        returnToSaleSource(invoiceId, l.item_id, condition, quantity)
+        repo.insertLine({ return_id: returnId, item_id: l.item_id, quantity, unit_price, condition, to_source: 1 })
+        total += quantity * unit_price
+        continue
+      }
 
       itemStock.ensureStock(l.item_id, condition)
       const stock = itemStock.getStock(l.item_id, condition)!
@@ -56,8 +71,26 @@ export function createReturn(input: ReturnInput): number {
     }
 
     repo.setTotal(returnId, round2(total))
+    if (type === 'sale') {
+      refundCash(invoiceId, returnId, input.refund, input.return_date || today())
+    }
     return returnId
   })()
+}
+
+/**
+ * فلوس العميل بعد المرتجع: لو دفع أكتر من صافي الفاتورة، اللي اترد له كاش بيتسجل، والباقي بيفضل رصيد له.
+ * فاتورة من غير عميل (كاش): مفيش حد نشيل له رصيد، فالزيادة كلها بترجع كاش.
+ */
+function refundCash(saleId: number, returnId: number, requested: unknown, date: string): void {
+  const sale = findSale(saleId)
+  if (!sale || sale.credit <= 0.005) {
+    if (requested !== undefined && requested !== '' && money(requested) > 0) throw new AppError('REFUND_EXCEEDS')
+    return
+  }
+  const amount = sale.customer_id === null ? sale.credit : requested === undefined || requested === '' ? 0 : round2(money(requested))
+  if (amount > sale.credit + 0.005) throw new AppError('REFUND_EXCEEDS')
+  if (amount > 0) paymentsRepo.insertRefund({ sale_id: saleId, amount, date, kind: 'cash', return_id: returnId })
 }
 
 /**
@@ -71,6 +104,10 @@ export function removeReturn({ id }: { id: number }): void {
     const invoiceId = (record.type === 'sale' ? record.sale_id : record.purchase_id)!
 
     for (const l of repo.findLineRows(id)) {
+      if (record.type === 'sale' && l.to_source) {
+        undoReturnToSaleSource(invoiceId, l.item_id, l.condition, l.quantity)
+        continue
+      }
       itemStock.ensureStock(l.item_id, l.condition)
       const stock = itemStock.getStock(l.item_id, l.condition)!
       if (record.type === 'sale') {

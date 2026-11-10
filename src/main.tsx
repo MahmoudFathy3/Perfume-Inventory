@@ -9,6 +9,9 @@ import '@/index.css'
 import { PrintProvider } from '@/shared/print/PrintProvider'
 import { ToastProvider } from '@/shared/toast/ToastProvider'
 import App from '@/App'
+import { ENV } from '@/config/env'
+
+if (ENV.isDev) document.title += ' [DEV]'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

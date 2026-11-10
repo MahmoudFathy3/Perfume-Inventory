@@ -7,7 +7,19 @@ import m004 from './migrations/004_sale_partner'
 import m005 from './migrations/005_warehouse'
 import m006 from './migrations/006_warehouse_workspace'
 import m007 from './migrations/007_warehouse_costs'
-
+import m008 from './migrations/008_transfer_payments'
+import m009 from './migrations/009_partner_customer'
+import m010 from './migrations/010_mixed_sales'
+import m011 from './migrations/011_transfer_recipient'
+import m012 from './migrations/012_purchase_partner'
+import m013 from './migrations/013_sale_refunds'
+import m014 from './migrations/014_purchase_paid_by_partner'
+import m015 from './migrations/015_partner_pair_payments'
+import m016 from './migrations/016_expenses'
+import m017 from './migrations/017_purchase_payments'
+import m018 from './migrations/018_purchase_joint'
+import m019 from './migrations/019_free_invoices'
+import m020 from './migrations/020_free_invoice_workspace'
 /** migration = SQL ثابت (sql) أو كود بيشغّله على الداتا بيز (up) لما محتاجين شرط أو حساب */
 export interface Migration {
   id: string
@@ -18,7 +30,7 @@ export interface Migration {
 }
 
 /** كل migration في ملف لوحده في migrations/. ضيف الجديد هنا بالترتيب. متعدّلش migration اتنفّذت قبل كده: اعمل واحدة جديدة. */
-const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007]
+const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m016, m017, m018, m019, m020]
 
 /** نسخة احتياطية من ملف الداتا بيز قبل أي تحويل على داتا موجودة */
 function backupBeforeMigration(db: Db, firstId: string): void {

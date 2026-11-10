@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import Select from 'react-select'
+import type { GroupBase } from 'react-select'
 import CreatableSelect from 'react-select/creatable'
 import type { Item } from '@shared/types'
 import { getLanguage } from '@/i18n/languages'
@@ -32,22 +33,33 @@ interface ProductSelectProps {
   onChange: (value: ProductValue) => void
   /** true (في المشتريات): بيظهر خيار "إضافة منتج جديد" لو الاسم مش موجود */
   allowCreate?: boolean
+  /** اسم المخزن التاني لو المنتج منه (فاتورة فيها منتجات من مخزن تاني). null = مخزن الفاتورة */
+  tagOf?: (item: Item) => string | null
+  /** أقسام في القايمة (قسم لكل مخزن). لو موجودة بتحل محل items في العرض */
+  groups?: { label: string; items: Item[] }[]
+  /** نص خيار "اسم جديد" (الافتراضي: إضافة منتج جديد في المشتريات) */
+  createLabel?: (input: string) => string
 }
 
 /** Select بالبحث للمنتج. الاسم في القائمة «عربي - English» والبحث بيتجاهل الهمزة والتاء المربوطة. */
-export function ProductSelect({ items, value, onChange, allowCreate = false }: ProductSelectProps) {
+export function ProductSelect({ items, value, onChange, allowCreate = false, tagOf, groups, createLabel }: ProductSelectProps) {
   const { t, i18n } = useTranslation()
   const isRtl = getLanguage(i18n.language).dir === 'rtl'
 
-  const options = useMemo<ProductOption[]>(
-    () =>
-      items.map((item) => ({
-        value: item.id,
-        label: bilingualName(item),
-        item,
-        search: normalizeArabic(`${item.name_ar} ${item.name_en ?? ''} ${item.category_name}`)
-      })),
-    [items]
+  const toOption = useCallback(
+    (item: Item): ProductOption => ({
+      value: item.id,
+      label: tagOf?.(item) ? `${bilingualName(item)} · ${tagOf(item)}` : bilingualName(item),
+      item,
+      search: normalizeArabic(`${item.name_ar} ${item.name_en ?? ''} ${item.category_name} ${tagOf?.(item) ?? ''}`)
+    }),
+    [tagOf]
+  )
+  // options = كل المنتجات (للبحث عن المختار)، و shown = اللي بيظهر في القايمة (بأقسام لو فيه أكتر من مخزن)
+  const options = useMemo<ProductOption[]>(() => (groups ? groups.flatMap((g) => g.items) : items).map(toOption), [items, groups, toOption])
+  const shown = useMemo<(ProductOption | GroupBase<ProductOption>)[]>(
+    () => (groups ? groups.filter((g) => g.items.length > 0).map((g) => ({ label: g.label, options: g.items.map(toOption) })) : options),
+    [groups, options, toOption]
   )
 
   const selected: ProductOption | null = value.item_id
@@ -64,7 +76,7 @@ export function ProductSelect({ items, value, onChange, allowCreate = false }: P
 
   const common = {
     classNamePrefix: 'rs',
-    options,
+    options: shown,
     value: selected,
     onChange: handleChange,
     isClearable: true,
@@ -76,9 +88,13 @@ export function ProductSelect({ items, value, onChange, allowCreate = false }: P
     formatOptionLabel: (option: ProductOption, meta: { context: 'menu' | 'value' }) => {
       if (meta.context === 'menu' && option.item) {
         const i = option.item
+        const tag = tagOf?.(i)
         return (
           <div className="flex flex-col leading-snug">
-            <span>{option.label}</span>
+            <span className="flex items-center gap-2">
+              {bilingualName(i)}
+              {tag && <span className="rounded-md bg-amber-100 px-1.5 text-[11px] font-bold text-amber-800">{tag}</span>}
+            </span>
             <small className="opacity-75">
               {i.category_name} · {t('sales.available')}: {t('condition.new')} {i.new_quantity} / {t('condition.damaged')} {i.damaged_quantity}
             </small>
@@ -98,7 +114,7 @@ export function ProductSelect({ items, value, onChange, allowCreate = false }: P
     <CreatableSelect<ProductOption, false>
       {...common}
       isValidNewOption={(input) => input.trim() !== '' && !items.some((i) => sameText(i.name_ar, input) || sameText(i.name_en, input))}
-      formatCreateLabel={(input) => t('purchases.createProduct', { name: input })}
+      formatCreateLabel={(input) => (createLabel ? createLabel(input) : t('purchases.createProduct', { name: input }))}
     />
   )
 }

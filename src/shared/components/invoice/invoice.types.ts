@@ -1,11 +1,12 @@
-import type { Condition, PriceType, PurchaseWithLines, ReturnWithLines, SaleWithLines, SettingsMap, ShippingPayer } from '@shared/types'
+import type { Condition, FreeInvoiceWithLines, PriceType, PurchaseWithLines, ReturnWithLines, SaleWithLines, SettingsMap, ShippingPayer } from '@shared/types'
 
-export type InvoiceKind = 'sale' | 'purchase' | 'sale_return' | 'purchase_return'
+export type InvoiceKind = 'sale' | 'purchase' | 'sale_return' | 'purchase_return' | 'free_invoice'
 
 export interface InvoiceDocLine {
   name_ar: string
   name_en: string | null
-  condition: Condition
+  /** null = بند من برّه في فاتورة حرّة (ملوش حالة) */
+  condition: Condition | null
   quantity: number
   unit_price: number
 }
@@ -16,15 +17,23 @@ export interface InvoiceDocData {
   id: number
   date: string
   party: string | null
+  /** تليفون العميل (الفاتورة الحرّة) */
+  phone?: string | null
   priceType?: PriceType
   /** مين بيدفع الشحن (في البيع بس) */
   shippingPayer?: ShippingPayer
   shipping: number
+  /** خصم (الفاتورة الحرّة) */
+  discount?: number
   total: number
   notes: string | null
-  /** المدفوع والمتبقي (فواتير البيع بس) */
+  /** المدفوع (قبل أي رد) والمتبقي، واللي اترد كاش، واللي اتخصم من رصيده، والرصيد اللي ليه (فواتير البيع بس) */
   paid?: number
   remaining?: number
+  returns?: number
+  refunded?: number
+  creditUsed?: number
+  credit?: number
   lines: InvoiceDocLine[]
 }
 
@@ -47,13 +56,18 @@ export const fromSale = (s: SaleWithLines): InvoiceDocData => ({
   id: s.id,
   date: s.sale_date,
   party: s.customer_name,
+  phone: s.customer_phone,
   priceType: s.price_type,
   shippingPayer: s.shipping_payer,
   shipping: s.shipping_cost,
   total: s.total,
   notes: s.notes,
-  paid: s.paid,
+  paid: Math.round((s.paid + s.refunded + s.credit_used) * 100) / 100,
   remaining: s.remaining,
+  returns: s.returns_total,
+  refunded: s.refunded,
+  creditUsed: s.credit_used,
+  credit: s.credit,
   lines: s.items.map((l) => ({ name_ar: l.name_ar, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.selling_price }))
 })
 
@@ -65,5 +79,22 @@ export const fromReturn = (r: ReturnWithLines): InvoiceDocData => ({
   shipping: 0,
   total: r.total,
   notes: r.reason,
+  refunded: r.refunded,
   lines: r.items.map((l) => ({ name_ar: l.name_ar, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.unit_price }))
+})
+
+export const fromFreeInvoice = (f: FreeInvoiceWithLines): InvoiceDocData => ({
+  kind: 'free_invoice',
+  id: f.id,
+  date: f.invoice_date,
+  party: f.customer_name,
+  phone: f.customer_phone,
+  priceType: f.price_type,
+  shipping: f.shipping_cost,
+  discount: f.discount,
+  total: f.total,
+  notes: f.notes,
+  paid: f.paid,
+  remaining: f.remaining,
+  lines: f.items.map((l) => ({ name_ar: l.name, name_en: l.name_en, condition: l.condition, quantity: l.quantity, unit_price: l.unit_price }))
 })

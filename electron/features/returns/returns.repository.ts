@@ -1,7 +1,9 @@
-import type { Condition, Page, PageParams, ReturnKind, ReturnLine, ReturnRecord, ReturnWithLines } from '@shared/types'
+import type { Condition, DateFilter, Page, PageParams, ReturnKind, ReturnLine, ReturnRecord, ReturnWithLines } from '@shared/types'
 import { execute, queryAll, queryOne } from '../../database/connection'
+import { dateClause } from '../../lib/dateRange'
 import { queryPage } from '../../lib/pagination'
 import { searchClause } from '../../lib/search'
+import { saleCredit, saleRemaining } from '../../lib/salePaid'
 import { activeWorkspaceId, inWorkspace, scoped } from '../../lib/workspace'
 
 export interface ReturnHeaderInput {
@@ -19,18 +21,23 @@ export interface ReturnLineRow {
   quantity: number
   unit_price: number
   condition: Condition
+  /** 1 = رجع للمخزن الأصلي (القطع كانت جاية من مخزن تاني في الفاتورة) */
+  to_source?: number
 }
 
-type ListOptions = { search?: string }
+type ListOptions = { search?: string } & DateFilter
 
 function listQuery(opts: ListOptions) {
   const { where, params } = scoped('r.workspace_id', searchClause(['r.reason', 'cu.name', 'p.supplier_name'], opts.search))
-  const sql = `SELECT r.*, cu.name AS customer_name, p.supplier_name FROM returns r
+  const dates = dateClause('r.return_date', opts)
+  const sql = `SELECT r.*, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, p.supplier_name, ROUND(COALESCE((SELECT SUM(amount) FROM sale_refunds WHERE return_id = r.id AND kind = 'cash'), 0), 2) AS refunded,
+       CASE WHEN s.id IS NULL THEN NULL ELSE ${saleRemaining('s.id', 's.total')} END AS sale_remaining,
+       CASE WHEN s.id IS NULL THEN NULL ELSE ${saleCredit('s.id', 's.total')} END AS sale_credit FROM returns r
      LEFT JOIN sales s ON s.id = r.sale_id
      LEFT JOIN customers cu ON cu.id = s.customer_id
      LEFT JOIN purchases p ON p.id = r.purchase_id
-     ${where} ORDER BY r.return_date DESC, r.id DESC`
-  return { sql, params }
+     ${where} ${dates.where} ORDER BY r.return_date DESC, r.id DESC`
+  return { sql, params: { ...params, ...dates.params } }
 }
 
 export function findAll(opts: ListOptions = {}): ReturnRecord[] {
@@ -46,7 +53,9 @@ export function findPage(opts: ListOptions, page: PageParams): Page<ReturnRecord
 
 export function findById(id: number): ReturnWithLines | null {
   const record = queryOne<ReturnRecord>(
-    `SELECT r.*, cu.name AS customer_name, p.supplier_name FROM returns r
+    `SELECT r.*, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, p.supplier_name, ROUND(COALESCE((SELECT SUM(amount) FROM sale_refunds WHERE return_id = r.id AND kind = 'cash'), 0), 2) AS refunded,
+       CASE WHEN s.id IS NULL THEN NULL ELSE ${saleRemaining('s.id', 's.total')} END AS sale_remaining,
+       CASE WHEN s.id IS NULL THEN NULL ELSE ${saleCredit('s.id', 's.total')} END AS sale_credit FROM returns r
      LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN customers cu ON cu.id = s.customer_id
      LEFT JOIN purchases p ON p.id = r.purchase_id WHERE r.id = ? AND ${inWorkspace('r.workspace_id')}`,
     [id]
@@ -69,9 +78,9 @@ export const insertHeader = (h: ReturnHeaderInput) =>
 
 export const insertLine = (l: ReturnLineRow) =>
   void execute(
-    `INSERT INTO return_items(return_id, item_id, quantity, unit_price, condition)
-     VALUES (@return_id, @item_id, @quantity, @unit_price, @condition)`,
-    { ...l }
+    `INSERT INTO return_items(return_id, item_id, quantity, unit_price, condition, to_source)
+     VALUES (@return_id, @item_id, @quantity, @unit_price, @condition, @to_source)`,
+    { ...l, to_source: l.to_source ?? 0 }
   )
 
 /** سطور المرتجع زي ما اتسجلت (بنستخدمها لعكس تأثيره على المخزن عند الحذف) */

@@ -1,8 +1,11 @@
-import type { DashboardRange, PartnerLedger, PartnerPaymentInput, PartnerSales } from '@shared/types'
+import type { CustomerSummary, DashboardRange, PartnerAccount, PartnerLedger, PartnerPaymentInput, PartnerSales, PartnerStatement, PartnerTransferInput } from '@shared/types'
 import { AppError, positiveAmount, round2, today } from '../../lib/errors'
-import { activeWorkspaceId, PERSONAL_WORKSPACE_ID } from '../../lib/workspace'
-import { lifetimeProfit } from '../dashboard/dashboard.service'
+import { getDb } from '../../database/connection'
+import { activeWorkspaceId, PERSONAL_WORKSPACE_ID, withWorkspace } from '../../lib/workspace'
+import * as customers from '../customers/customers.repository'
+import { lifetimeProfit, summary as dashboardSummary } from '../dashboard/dashboard.service'
 import * as workspaces from '../workspaces/workspaces.repository'
+import { linkPartnerCustomers } from '../workspaces/workspaces.service'
 import * as repo from './partners.repository'
 
 /** الشراكة اللي شغالين عليها (حسابات الشركاء ملهاش معنى في المخزون الفعلي) */
@@ -14,11 +17,15 @@ function currentPartnership(): number {
 
 /**
  * كشف حساب الشركاء في الشراكة النشطة.
- * المستحق للشريك = نصيبه من الربح + اللي باعه للشراكة - اللي اتسوّى.
+ * المستحق للشريك = نصيبه من الربح + اللي باعه للشراكة + اللي دفعه من جيبه في مشتريات الشراكة - اللي اتسوّى.
  * (رأس المال بيتعرض لوحده علشان بيرجع للشريك في التصفية مش مع الأرباح.)
+ * ومع كل شريك حسابه كعميل في المخزون الفعلي (اللي أخده من المخزون الفعلي لنفسه).
  */
 export function ledger(): PartnerLedger {
   const ws = currentPartnership()
+  // الشراكات القديمة (قبل الربط): الشريك بيتربط بعميله أول ما الحسابات تتفتح
+  getDb().transaction(() => linkPartnerCustomers(ws))()
+  const storeAccounts = new Map(withWorkspace(PERSONAL_WORKSPACE_ID, () => customers.findAll()).map((c) => [c.id, c]))
   const profit = round2(lifetimeProfit())
   const totals = new Map(repo.totals(ws).map((t) => [t.partner_id, t]))
 
@@ -29,12 +36,36 @@ export function ledger(): PartnerLedger {
       partner,
       capital: round2(t.capital),
       sold: round2(t.sold),
+      // التسوية بين الشريكين بتتعرض في "دفعه من جيبه" (اللي دفعه لشريكه بيزيد، واللي استلمه بيقل) مش في "اتدفع فعلًا"، والباقي زي ما هو
+      paid_out: round2(t.paid_out - t.pair_net),
       profit_share,
-      settled: round2(t.settled),
-      balance: round2(profit_share + t.sold - t.settled)
+      settled: round2(t.settled - t.pair_net),
+      balance: round2(profit_share + t.sold + t.paid_out - t.settled),
+      store_account: storeAccountOf(partner.customer_id, storeAccounts)
     }
   })
   return { profit, accounts, payments: repo.findPayments(ws) }
+}
+
+/**
+ * كشف حساب شريك واحد بالتفصيل: نفس أرقام الجدول ومعاها حساب نصيب الربح خطوة بخطوة والحركات اللي كوّنت كل بند.
+ * مجموع كل بند في الحركات = نفس الرقم اللي في الجدول.
+ */
+export function statement({ partner_id }: { partner_id: number }): PartnerStatement {
+  const ws = currentPartnership()
+  const account = ledger().accounts.find((a) => a.partner.id === Number(partner_id))
+  if (!account) throw new AppError('PARTNER_NOT_FOUND')
+  const all = dashboardSummary()
+  return {
+    account,
+    profit: { actual: all.profit, expenses: all.expenses.deducted, net: all.net_profit, share_percent: account.partner.share_percent },
+    lines: repo.statementLines(ws, account.partner.id)
+  }
+}
+
+function storeAccountOf(customerId: number | null, accounts: Map<number, CustomerSummary>): PartnerAccount['store_account'] {
+  const c = customerId ? accounts.get(customerId) : undefined
+  return c ? { customer_id: c.id, sales_count: c.sales_count, total: c.total, paid: c.paid, remaining: c.remaining } : null
 }
 
 /** تسوية: الشراكة بتدفع للشريك (to_partner) أو الشريك بيدفع للشراكة (from_partner) */
@@ -52,7 +83,30 @@ export function addPayment(input: PartnerPaymentInput): number {
   })
 }
 
-export const removePayment = ({ id }: { id: number }): void => repo.removePayment(id, currentPartnership())
+/**
+ * تسوية بين الشريكين: from دفع لـ to من جيبه. بتتسجل كإن from دفع للشراكة والشراكة دفعت لـ to
+ * (فاللي ليه بيقل عند to وبيزيد عند from بنفس المبلغ). الدفعتين مربوطين وبيتحذفوا مع بعض.
+ */
+export const transferBetweenPartners = (input: PartnerTransferInput): number =>
+  getDb().transaction(() => {
+    const ws = currentPartnership()
+    const partners = workspaces.findPartners(ws)
+    const from = partners.find((p) => p.id === Number(input.from_partner_id))
+    const to = partners.find((p) => p.id === Number(input.to_partner_id))
+    if (!from || !to) throw new AppError('PARTNER_NOT_FOUND')
+    if (from.id === to.id) throw new AppError('DUPLICATE_PARTNERS')
+    const amount = positiveAmount(input.amount)
+    const date = input.payment_date || today()
+    const notes = input.notes?.trim() || null
+    const received = repo.insertPayment({ workspace_id: ws, partner_id: to.id, amount, payment_date: date, notes })
+    const paid = repo.insertPayment({ workspace_id: ws, partner_id: from.id, amount: -amount, payment_date: date, notes })
+    repo.setPair([received, paid], received)
+    return received
+  })()
+
+export function removePayment({ id }: { id: number }): void {
+  repo.removePayment(id, currentPartnership())
+}
 
 /**
  * مبيعات كل شريك في الشراكة النشطة (من / إلى اختياري). الصافي = الإجمالي - المرتجع.

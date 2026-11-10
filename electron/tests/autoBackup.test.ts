@@ -15,7 +15,7 @@ test.after(() => fs.rmSync(tmp, { recursive: true, force: true }))
 
 /** config في الذاكرة بنفس شكل config.json */
 function memoryConfig(initial: Partial<ConfigData> = {}): AppConfig {
-  let data: ConfigData = { dbPath: dbFile, autoBackupEnabled: true, autoBackupDir: '', autoBackupKeep: 30, ...initial }
+  let data: ConfigData = { dbPath: dbFile, autoBackupEnabled: true, autoBackupDir: '', autoBackupKeep: 30, appName: '', ...initial }
   return { read: () => ({ ...data }), write: (patch) => void (data = { ...data, ...patch }) }
 }
 

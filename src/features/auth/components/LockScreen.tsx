@@ -1,7 +1,7 @@
 import { KeyRound, LockOpen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Button, Field, Input } from '@/shared/components/ui'
+import { Alert, Button, Field, PasswordInput } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { useAuth } from '../AuthProvider'
 import { AuthShell } from './AuthShell'
@@ -36,7 +36,7 @@ export function LockScreen() {
     <AuthShell title={t('auth.lockedTitle')} subtitle={t('auth.lockedSubtitle')}>
       <form onSubmit={submit}>
         <Field label={t('auth.password')}>
-          <Input type="password" autoFocus autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={waiting} />
+          <PasswordInput autoFocus autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={waiting} />
         </Field>
         {waiting && <Alert tone="warning">{t('auth.wait', { seconds: status.waitSeconds })}</Alert>}
         <Button type="submit" variant="primary" icon={LockOpen} className="w-full" disabled={saving || waiting || !password}>{t('auth.unlock')}</Button>

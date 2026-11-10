@@ -1,19 +1,35 @@
+import { RotateCcw, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { TransferDetails, TransferLine } from '@shared/types'
-import { ConditionBadge, DataTable, Modal } from '@/shared/components/ui'
+import type { PartnerPayment, TransferDetails, TransferLine } from '@shared/types'
+import { Button, ConditionBadge, DataTable, Modal } from '@/shared/components/ui'
 import type { Column } from '@/shared/components/ui'
-import { formatMoney } from '@/shared/utils/format'
+import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
+import { formatDate, formatMoney } from '@/shared/utils/format'
+import { TransferPaymentStatus } from './TransferPaymentStatus'
 
 interface TransferDetailsModalProps {
   transfer: TransferDetails
   nameOf: (workspaceId: number) => string
   onClose: () => void
+  /** حذف دفعة واحدة (اتسجلت بالغلط أو الدفع اترجع) */
+  onRemovePayment: (payment: PartnerPayment) => Promise<void>
+  /** التحويل يرجع "لسه متدفعش" (كل دفعاته بتتحذف) */
+  onUnpay: () => Promise<void>
 }
 
-/** تفاصيل تحويل: الطرفين والنوع وسطور القطع بتكلفتها وبسعر التحويل */
-export function TransferDetailsModal({ transfer, nameOf, onClose }: TransferDetailsModalProps) {
+/** تفاصيل تحويل: الطرفين والنوع وسطور القطع بتكلفتها وبسعر التحويل، ودفعاته (وحذفها أو ترجيعه متدفعش) */
+export function TransferDetailsModal({ transfer, nameOf, onClose, onRemovePayment, onUnpay }: TransferDetailsModalProps) {
   const { t, i18n } = useTranslation()
   const money = (v: number) => formatMoney(v, i18n.language)
+
+  const removeOne = useConfirmDelete<PartnerPayment>(onRemovePayment, {
+    getName: (p) => `${money(Math.abs(p.amount))} — ${formatDate(p.payment_date)}`,
+    note: t('transfers.removePaymentNote')
+  })
+  const unpay = useConfirmDelete<TransferDetails>(() => onUnpay(), {
+    getName: (row) => `${t('transfers.title')} #${row.id} — ${money(row.paid)}`,
+    note: t('transfers.unpayNote')
+  })
 
   const columns: Column<TransferLine>[] = [
     { key: 'name', header: t('common.product'), cell: (l) => l.item_name },
@@ -28,7 +44,35 @@ export function TransferDetailsModal({ transfer, nameOf, onClose }: TransferDeta
     <Modal title={`${t('transfers.title')} #${transfer.id}`} onClose={onClose} wide>
       <p className="mb-1">{nameOf(transfer.from_workspace_id)} ← {nameOf(transfer.to_workspace_id)} · {t(`transfers.kinds.${transfer.kind}`)}{transfer.partner_name ? ` · ${transfer.partner_name}` : ''}</p>
       {transfer.notes && <p className="mb-3 text-sm text-slate-500">{transfer.notes}</p>}
+      {transfer.sale_id && <p className="mb-3 text-sm text-slate-500">{t('transfers.fromSale', { id: transfer.sale_id })} — {t('transfers.fromSaleNote')}</p>}
       <DataTable columns={columns} rows={transfer.items} rowKey={(l) => l.id} />
+      {transfer.kind === 'sale' && (
+        <>
+          <h3 className="mb-2 mt-5 flex items-center gap-2">
+            {t('transfers.payments')} <TransferPaymentStatus transfer={transfer} />
+            {transfer.payments.length > 0 && (
+              <Button size="sm" icon={RotateCcw} className="ms-auto" onClick={() => unpay.ask(transfer)}>{t('transfers.unpay')}</Button>
+            )}
+          </h3>
+          {transfer.payments.length === 0 ? (
+            <p className="text-sm text-slate-500">{t('transfers.noPayments')}</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
+              {transfer.payments.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2">
+                  <span>{formatDate(p.payment_date)} · {p.partner_name}{p.notes ? ` · ${p.notes}` : ''}</span>
+                  <span className="flex items-center gap-2">
+                    <strong>{money(Math.abs(p.amount))}</strong>
+                    <Button size="sm" variant="danger" icon={Trash2} aria-label={t('common.delete')} onClick={() => removeOne.ask(p)} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {removeOne.dialog}
+      {unpay.dialog}
     </Modal>
   )
 }

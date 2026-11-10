@@ -9,36 +9,43 @@ import { fromSale } from '@/shared/components/invoice/invoice.types'
 import type { InvoiceDocData } from '@/shared/components/invoice/invoice.types'
 import { InvoicesTable } from '@/shared/components/invoice/InvoicesTable'
 import { InvoiceViewer } from '@/shared/components/invoice/InvoiceViewer'
+import { grossPaid } from '@/shared/components/invoice/SalePaidCell'
 import { SaleForm } from '@/shared/components/invoice/SaleForm'
 import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { formatMoney } from '@/shared/utils/format'
 import { customersApi, useCustomers } from '../../customers'
+import { DateRangeFilter, FilterGroup } from '@/shared/components/data/DateRangeFilter'
+import type { DateRange } from '@/shared/components/data/DateRangeFilter'
 import { useItems } from '../../items'
 import { useWorkspaces } from '../../workspaces'
 import { salesApi } from '../api/sales.api'
+import { useForeignItems } from '../hooks/useForeignItems'
 import { useSales } from '../hooks/useSales'
 
 export default function SalesPage() {
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const [search, setSearch] = useState('')
-  const { active } = useWorkspaces()
+  const { active, label } = useWorkspaces()
   const partners = active.kind === 'partnership' ? active.partners : []
   const [partnerFilter, setPartnerFilter] = useState('') // '' = كل الشركاء
   const [form, setForm] = useState<{ sale: SaleWithLines | null } | null>(null) // sale = null: فاتورة جديدة
   const [invoice, setInvoice] = useState<InvoiceDocData | null>(null)
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
   const partnerId = partnerFilter ? Number(partnerFilter) : undefined
-  const pagination = useSales(search, partnerId)
+  const pagination = useSales(search, partnerId, range)
   const { reload } = pagination
   const { items, reload: reloadItems } = useItems('')
   const { customers, reload: reloadCustomers } = useCustomers()
+  const { foreign, reload: reloadForeign } = useForeignItems()
 
   /** أي تغيير في فاتورة بيع بيأثر على المخزن والعملاء */
   const refresh = () => {
     reload()
     reloadItems()
+    reloadForeign()
     reloadCustomers()
   }
 
@@ -66,28 +73,35 @@ export default function SalesPage() {
     {
       getName: (row) => `#${row.id}${row.customer_name ? ` — ${row.customer_name}` : ''}`,
       note: t('sales.deleteNote'),
-      getWarning: (row) => (row.paid > 0 ? t('sales.deletePaymentsWarning', { amount: formatMoney(row.paid, i18n.language) }) : null)
+      getWarning: (row) => (grossPaid(row) > 0 ? t('sales.deletePaymentsWarning', { amount: formatMoney(grossPaid(row), i18n.language) }) : null)
     }
   )
 
   return (
     <>
       <PageHeader title={t('sales.title')}>
-        {partners.length > 0 && (
-          <Segmented
-            value={partnerFilter}
-            onChange={setPartnerFilter}
-            options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
-          />
-        )}
         <SearchBar value={search} onChange={setSearch} />
-        <ExportMenu target={{ dataset: 'sales', search, partnerId }} />
+        <ExportMenu target={{ dataset: 'sales', search, partnerId, ...range }} />
         <Button variant="primary" icon={Plus} onClick={() => setForm({ sale: null })}>{t('sales.add')}</Button>
       </PageHeader>
+      <div className="mb-4">
+        <DateRangeFilter range={range} onChange={setRange}>
+          {partners.length > 0 && (
+            <FilterGroup label={t('sales.soldBy')}>
+              <Segmented
+                value={partnerFilter}
+                onChange={setPartnerFilter}
+                options={[{ value: '', label: t('sales.allPartners') }, ...partners.map((p) => ({ value: String(p.id), label: p.name }))]}
+              />
+            </FilterGroup>
+          )}
+        </DateRangeFilter>
+      </div>
 
       <InvoicesTable
         kind="sale"
         rows={pagination.pageRows}
+        showPartner={partners.length > 0}
         onView={async (row) => {
           const full = await salesApi.get({ id: row.id })
           if (full) setInvoice(fromSale(full))
@@ -99,7 +113,7 @@ export default function SalesPage() {
 
       {form && (
         <Modal title={t(form.sale ? 'sales.edit' : 'sales.add')} onClose={() => setForm(null)} wide>
-          <SaleForm items={items} customers={customers} partners={partners} onCreateCustomer={createCustomer} initial={form.sale} onSubmit={save} onCancel={() => setForm(null)} />
+          <SaleForm items={items} foreign={foreign} storeLabel={label(active)} customers={customers} partners={partners} onCreateCustomer={createCustomer} initial={form.sale} onSubmit={save} onCancel={() => setForm(null)} />
         </Modal>
       )}
       {invoice && <InvoiceViewer data={invoice} onClose={() => setInvoice(null)} />}

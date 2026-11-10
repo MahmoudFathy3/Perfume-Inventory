@@ -79,7 +79,12 @@ test('العزل: كل مخزن له أصنافه ومنتجاته وعملاء�
   const cat1 = categories.createCategory({ name: 'دخوني' }) // نفس اسم الصنف
   const item1 = items.createItem({ category_id: cat1, name_ar: 'خليفه', stock: stockOf(5, 2500) }) // نفس اسم المنتج
   assert.equal(err(() => items.createItem({ category_id: cat1, name_ar: 'خليفة', stock: stockOf(1, 1) })), 'DUPLICATE_NAME') // التكرار جوه نفس المخزن لسه ممنوع
-  purchases.createPurchase({ supplier_name: 'مورد', items: [{ item_id: item1, condition: 'new', quantity: 5, purchase_price: 100 }] })
+  // في الشراكة لازم نحدد مين من الشركاء اللي اشترى
+  assert.equal(err(() => purchases.createPurchase({ supplier_name: 'مورد', items: [{ item_id: item1, condition: 'new', quantity: 5, purchase_price: 100 }] })), 'PARTNER_REQUIRED')
+  const buyer = ws.listWorkspaces().find((w) => w.id === first)!.partners[0].id
+  const pid = purchases.createPurchase({ supplier_name: 'مورد', partner_id: buyer, items: [{ item_id: item1, condition: 'new', quantity: 5, purchase_price: 100 }] })
+  assert.equal(purchases.getPurchase({ id: pid })!.partner_id, buyer)
+  assert.equal(purchases.pagePurchases({ partnerId: buyer }).total, 1)
 
   // الأرقام منفصلة
   const shared = items.listItems({})

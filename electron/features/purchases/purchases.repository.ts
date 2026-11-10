@@ -1,11 +1,15 @@
-import type { Condition, Page, PageParams, Purchase, PurchaseLine, PurchaseWithLines } from '@shared/types'
+import type { Condition, DateFilter, Page, PageParams, Purchase, PurchaseLine, PurchasePayment, PurchaseWithLines } from '@shared/types'
 import { execute, queryAll, queryOne } from '../../database/connection'
+import { dateClause } from '../../lib/dateRange'
 import { queryPage } from '../../lib/pagination'
 import { searchClause } from '../../lib/search'
 import { activeWorkspaceId, inWorkspace, scoped } from '../../lib/workspace'
 
 export interface PurchaseHeaderInput {
   supplier_name: string
+  partner_id: number | null
+  joint: number
+  paid_by_partner: number
   purchase_date: string
   shipping_cost: number
   total: number
@@ -24,11 +28,30 @@ export interface PurchaseLineRow {
   wholesale_price: number
 }
 
-type ListOptions = { search?: string }
+type ListOptions = { search?: string; partnerId?: number } & DateFilter
+
+const PAID = 'COALESCE((SELECT SUM(amount) FROM purchase_payments WHERE purchase_id = p.id), 0)'
+const RETURNS = 'COALESCE((SELECT SUM(total) FROM returns WHERE purchase_id = p.id), 0)'
+
+/**
+ * الفاتورة واسم الشريك اللي اشترى، والمدفوع للمورد والمرتجع والمتبقي له (مش أقل من صفر).
+ * اللي الشريك دفعها من جيبه بتتحسب مدفوعة كلها (الشراكة مدينة للشريك مش للمورد).
+ */
+const SELECT = `SELECT p.*, wp.name AS partner_name,
+       ROUND(CASE WHEN p.paid_by_partner = 1 THEN p.total ELSE ${PAID} END, 2) AS paid,
+       ROUND(${RETURNS}, 2) AS returns_total,
+       CASE WHEN p.paid_by_partner = 1 THEN 0 ELSE MAX(0, ROUND(p.total - ${RETURNS} - ${PAID}, 2)) END AS remaining
+  FROM purchases p LEFT JOIN workspace_partners wp ON wp.id = p.partner_id`
 
 function listQuery(opts: ListOptions) {
-  const { where, params } = scoped('workspace_id', searchClause(['supplier_name', 'notes'], opts.search))
-  return { sql: `SELECT * FROM purchases ${where} ORDER BY purchase_date DESC, id DESC`, params }
+  const { where, params } = scoped('p.workspace_id', searchClause(['p.supplier_name', 'p.notes', 'wp.name'], opts.search))
+  // فلتر الشريك: فواتيره هو + اللي اشتروها مع بعض
+  const byPartner = opts.partnerId ? 'AND (p.partner_id = @partnerId OR p.joint = 1)' : ''
+  const dates = dateClause('p.purchase_date', opts)
+  return {
+    sql: `${SELECT} ${where} ${byPartner} ${dates.where} ORDER BY p.purchase_date DESC, p.id DESC`,
+    params: { ...params, ...dates.params, partnerId: opts.partnerId }
+  }
 }
 
 /** كل الفواتير (للقوايم المنسدلة) */
@@ -44,15 +67,31 @@ export function findPage(opts: ListOptions, page: PageParams): Page<Purchase> {
 }
 
 export function findById(id: number): PurchaseWithLines | null {
-  const purchase = queryOne<Purchase>(`SELECT * FROM purchases WHERE id = ? AND ${inWorkspace('workspace_id')}`, [id])
+  const purchase = queryOne<Purchase>(`${SELECT} WHERE p.id = ? AND ${inWorkspace('p.workspace_id')}`, [id])
   if (!purchase) return null
   const items = queryAll<PurchaseLine>(
     `SELECT pi.*, i.name_ar, i.name_en FROM purchase_items pi
      JOIN items i ON i.id = pi.item_id WHERE pi.purchase_id = ? ORDER BY pi.id`,
     [id]
   )
-  return { ...purchase, items }
+  return { ...purchase, items, payments: findPayments(id) }
 }
+
+// ---------- دفعات المورد ----------
+export const findPayments = (purchaseId: number) =>
+  queryAll<PurchasePayment>('SELECT id, purchase_id, amount, payment_date, notes FROM purchase_payments WHERE purchase_id = ? ORDER BY payment_date, id', [purchaseId])
+export const sumPayments = (purchaseId: number): number =>
+  queryOne<{ s: number }>('SELECT COALESCE(SUM(amount), 0) AS s FROM purchase_payments WHERE purchase_id = ?', [purchaseId])!.s
+export const insertPayment = (purchaseId: number, amount: number, date: string, notes: string | null) =>
+  execute('INSERT INTO purchase_payments(purchase_id, amount, payment_date, notes) VALUES (?, ?, ?, ?)', [purchaseId, amount, date, notes])
+export const removePayments = (purchaseId: number) => void execute('DELETE FROM purchase_payments WHERE purchase_id = ?', [purchaseId])
+/** الدفعة لو تبع فاتورة في المخزن النشط */
+export const findPayment = (id: number) =>
+  queryOne<{ id: number; purchase_id: number }>(
+    `SELECT pp.id, pp.purchase_id FROM purchase_payments pp JOIN purchases p ON p.id = pp.purchase_id WHERE pp.id = ? AND ${inWorkspace('p.workspace_id')}`,
+    [id]
+  )
+export const removePayment = (id: number) => void execute('DELETE FROM purchase_payments WHERE id = ?', [id])
 
 /** سطور الفاتورة زي ما اتسجلت (بنستخدمها لخصم الكميات من المخزن عند التعديل والحذف) */
 export const findLineRows = (purchaseId: number) =>
@@ -60,7 +99,7 @@ export const findLineRows = (purchaseId: number) =>
 
 export const updateHeader = (id: number, h: PurchaseHeaderInput) =>
   void execute(
-    `UPDATE purchases SET supplier_name = @supplier_name, purchase_date = @purchase_date,
+    `UPDATE purchases SET supplier_name = @supplier_name, partner_id = @partner_id, joint = @joint, paid_by_partner = @paid_by_partner, purchase_date = @purchase_date,
        shipping_cost = @shipping_cost, total = @total, notes = @notes WHERE id = @id`,
     { ...h, id }
   )
@@ -74,8 +113,8 @@ export const returnsCount = (purchaseId: number): number =>
 
 export const insertHeader = (h: PurchaseHeaderInput) =>
   execute(
-    `INSERT INTO purchases(workspace_id, supplier_name, purchase_date, shipping_cost, total, notes)
-     VALUES (@workspace_id, @supplier_name, @purchase_date, @shipping_cost, @total, @notes)`,
+    `INSERT INTO purchases(workspace_id, supplier_name, partner_id, joint, paid_by_partner, purchase_date, shipping_cost, total, notes)
+     VALUES (@workspace_id, @supplier_name, @partner_id, @joint, @paid_by_partner, @purchase_date, @shipping_cost, @total, @notes)`,
     { ...h, workspace_id: activeWorkspaceId() }
   )
 

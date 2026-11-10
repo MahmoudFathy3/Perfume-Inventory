@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowLeftRight, Banknote, FolderTree, Handshake, HandCoins, Lock, LayoutDashboard, Package, PanelRightClose, PanelRightOpen, Settings, ShoppingCart, Undo2, Users } from 'lucide-react'
+import { ArrowLeftRight, Banknote, FileText, FolderTree, Handshake, HandCoins, Lock, LayoutDashboard, Package, PanelRightClose, PanelRightOpen, Receipt, Settings, ShoppingCart, Undo2, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { WorkspaceKind } from '@shared/types'
@@ -7,6 +7,8 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '@/features/auth'
 import { useWorkspaces, WorkspaceSwitcher } from '@/features/workspaces'
 import logo from '@/assets/logo.svg'
+import { DevBadge } from '@/shared/components/ui'
+import { useAppName } from '@/shared/hooks/useAppName'
 import { useSidebarCollapsed } from './useSidebarCollapsed'
 
 const ALL: WorkspaceKind[] = ['personal', 'partnership', 'warehouse']
@@ -19,9 +21,11 @@ const LINKS: { to: string; key: string; icon: LucideIcon; kinds: WorkspaceKind[]
   { to: '/categories', key: 'categories', icon: FolderTree, kinds: STORES },
   { to: '/purchases', key: 'purchases', icon: ShoppingCart, kinds: STORES },
   { to: '/sales', key: 'sales', icon: Banknote, kinds: STORES },
+  { to: '/free-invoices', key: 'freeInvoices', icon: FileText, kinds: STORES },
   { to: '/customers', key: 'customers', icon: Users, kinds: STORES },
   { to: '/returns', key: 'returns', icon: Undo2, kinds: STORES },
   { to: '/transfers', key: 'transfers', icon: ArrowLeftRight, kinds: STORES },
+  { to: '/expenses', key: 'expenses', icon: Receipt, kinds: STORES },
   { to: '/partners', key: 'partners', icon: HandCoins, kinds: ['partnership'] },
   { to: '/workspaces', key: 'workspaces', icon: Handshake, kinds: ALL },
   { to: '/settings', key: 'settings', icon: Settings, kinds: ALL }
@@ -32,6 +36,7 @@ const item = 'flex items-center gap-3 rounded-xl py-2.5 transition'
 /** القايمة الجانبية: ثابتة في مكانها والمحتوى بس هو اللي بيتحرك مع السكرول. في الشاشات الصغيرة بتبقى أيقونات بس */
 export function Sidebar() {
   const { t } = useTranslation()
+  const { name: appName } = useAppName()
   const { active } = useWorkspaces()
   const { lock } = useAuth()
   const { collapsed, toggle } = useSidebarCollapsed()
@@ -46,8 +51,12 @@ export function Sidebar() {
       )}
     >
       <div className={clsx('mb-2.5 flex items-center gap-3 border-b border-white/10 pb-[18px] pt-1.5 text-xl font-bold text-white', collapsed ? 'justify-center px-0' : 'px-3')}>
-        <img src={logo} alt="" className="h-10 w-10 shrink-0 drop-shadow-md" />
-        {!collapsed && <span className="min-w-0 truncate">{t('app.name')}</span>}
+        <span className="relative shrink-0">
+          <img src={logo} alt="" className="h-10 w-10 drop-shadow-md" />
+          {collapsed && <DevBadge className="absolute -bottom-1.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2" />}
+        </span>
+        {!collapsed && <span className="min-w-0 truncate">{appName}</span>}
+        {!collapsed && <DevBadge />}
       </div>
       <WorkspaceSwitcher compact={collapsed} />
       {LINKS.filter((link) => link.kinds.includes(active.kind)).map(({ to, key, icon: Icon }) => (
