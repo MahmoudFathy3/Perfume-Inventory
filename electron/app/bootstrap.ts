@@ -8,7 +8,7 @@ import { migrate } from '../database/migrate'
 import { registerAll } from '../features'
 import { Session } from '../security/session'
 import { renderHtmlToImage } from '../windows/capture.window'
-import { hideWhatsApp, shareOnWhatsApp } from '../windows/whatsapp.window'
+import { hideWhatsApp, shareOnWhatsApp, showWhatsApp } from '../windows/whatsapp.window'
 import { createVaultStore } from '../security/vaultStore'
 
 /** تجهيز الـ backend: الإعدادات + كلمة السر + أوامر الـ IPC. الداتا بيز بتتفتح بعد إدخال كلمة السر بس. */
@@ -38,5 +38,5 @@ export function initBackend(): void {
   // قفل البرنامج بيخفي نافذة واتساب كمان (المحادثات متفضلش ظاهرة)
   session.onLock(hideWhatsApp)
 
-  registerAll({ ipcMain, dialog, app, config, clipboard, shell, capture: renderHtmlToImage, whatsapp: shareOnWhatsApp, session })
+  registerAll({ ipcMain, dialog, app, config, clipboard, shell, capture: renderHtmlToImage, whatsapp: shareOnWhatsApp, openWhatsApp: showWhatsApp, session })
 }
