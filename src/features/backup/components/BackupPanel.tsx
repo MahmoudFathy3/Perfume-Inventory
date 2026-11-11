@@ -1,4 +1,5 @@
 import { Download, Upload } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DataTransfer } from '@shared/types'
 import { Pagination } from '@/shared/components/data/Pagination'
@@ -9,6 +10,7 @@ import { useQuery } from '@/shared/hooks/useQuery'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { backupApi } from '../api/backup.api'
 import { AutoBackupSection } from './AutoBackupSection'
+import { ForeignBackupDialog } from './ForeignBackupDialog'
 
 /** عمليات النسخ التلقائي بتتسجل كتصدير بحالة خاصة */
 const TYPE_LABEL: Record<string, string> = { auto: 'autoBackup.historyAuto', 'auto-failed': 'autoBackup.historyFailed' }
@@ -29,7 +31,18 @@ export function BackupPanel() {
     }
   }
 
-  const doImport = () => window.confirm(t('settings.confirmImport')) && run(backupApi.import)
+  // نسخة من جهاز تاني: بنطلب كلمة سره (hasVault = الخزنة جنب النسخة، وإلا هيطلب يختارها)
+  const [foreign, setForeign] = useState<{ hasVault: boolean } | null>(null)
+
+  async function doImport() {
+    if (!window.confirm(t('settings.confirmImport'))) return
+    try {
+      const res = await backupApi.import()
+      if (res.foreign) setForeign({ hasVault: !!res.hasVault })
+    } catch (e) {
+      toast.fail(e)
+    }
+  }
 
   const columns: Column<DataTransfer>[] = [
     { key: 'type', header: '', cell: (h) => t(TYPE_LABEL[h.status] ?? (h.type === 'export' ? 'settings.exportType' : 'settings.importType')) },
@@ -54,6 +67,7 @@ export function BackupPanel() {
           <Pagination {...pagination} />
         </>
       )}
+      {foreign && <ForeignBackupDialog hasVault={foreign.hasVault} onClose={() => setForeign(null)} />}
     </Card>
   )
 }

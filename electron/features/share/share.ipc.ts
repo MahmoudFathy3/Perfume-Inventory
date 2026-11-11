@@ -18,7 +18,10 @@ const safeName = (name: unknown) => String(name ?? 'invoice').replace(/[\\/:*?"<
  * - PDF: بيتحفظ في الفولدر المؤقت، ولو معرفناش نحطه في الشات الفولدر بيتفتح علشان تسحبه.
  * الرقم المصري المحلي بيتحط قبله 20، والرقم الغلط بيترفض قبل أي حاجة.
  */
-export function register(handle: HandleFn, { app, clipboard, shell, capture, whatsapp }: IpcContext): void {
+export function register(handle: HandleFn, { app, clipboard, shell, capture, whatsapp, openWhatsApp }: IpcContext): void {
+  // زرار الرئيسية: واتساب جوه البرنامج من غير فاتورة
+  handle('share:open-whatsapp', () => openWhatsApp())
+
   const shareDir = () => path.join(app.getPath('temp'), `${app.getName()}-share`)
 
   /** الفاضي = تختار الشات من واتساب، والمكتوب غلط بيترفض */

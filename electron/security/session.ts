@@ -96,6 +96,22 @@ export class Session {
     this.unlockWith(key)
   }
 
+  /**
+   * مفتاح نسخة احتياطية من جهاز تاني (والبرنامج مفتوح هنا بكلمة سر تانية): خزنة النسخة + كلمة سر الجهاز القديم
+   * أو مفتاح الاسترجاع بتاعه. المحاولات الغلط بتتحسب زي فتح البرنامج (علشان محدش يخمّن).
+   */
+  foreignBackupKey(vault: Vault, secret: string): string {
+    this.requireUnlocked()
+    this.assertNotBlocked()
+    const text = typeof secret === 'string' ? secret : ''
+    const key = (text && openWithPassword(vault, text)) || (text && openWithRecoveryKey(vault, text)) || null
+    if (!key) return this.fail('BACKUP_WRONG_PASSWORD')
+    this.failures = 0
+    const hex = toDbKey(key)
+    key.fill(0)
+    return hex
+  }
+
   /** نسخة من الخزنة جنب النسخة الاحتياطية (من غيرها النسخة مبتتفتحش على جهاز تاني) */
   exportVault(destination: string): void {
     this.requireUnlocked()
