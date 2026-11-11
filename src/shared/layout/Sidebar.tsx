@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowLeftRight, Banknote, FolderTree, Handshake, HandCoins, Lock, LayoutDashboard, Package, PanelRightClose, PanelRightOpen, Receipt, Settings, ShoppingCart, Undo2, Users } from 'lucide-react'
+import { ArrowLeftRight, Banknote, FileText, FolderTree, Handshake, HandCoins, Lock, LayoutDashboard, Package, PanelRightClose, PanelRightOpen, Receipt, Settings, ShoppingCart, Undo2, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { WorkspaceKind } from '@shared/types'
@@ -21,6 +21,7 @@ const LINKS: { to: string; key: string; icon: LucideIcon; kinds: WorkspaceKind[]
   { to: '/categories', key: 'categories', icon: FolderTree, kinds: STORES },
   { to: '/purchases', key: 'purchases', icon: ShoppingCart, kinds: STORES },
   { to: '/sales', key: 'sales', icon: Banknote, kinds: STORES },
+  { to: '/free-invoices', key: 'freeInvoices', icon: FileText, kinds: STORES },
   { to: '/customers', key: 'customers', icon: Users, kinds: STORES },
   { to: '/returns', key: 'returns', icon: Undo2, kinds: STORES },
   { to: '/transfers', key: 'transfers', icon: ArrowLeftRight, kinds: STORES },

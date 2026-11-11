@@ -67,6 +67,9 @@ export default function ItemDetailsPage() {
   const num = (v: number) => formatNumber(v, lang)
   const setFilter = (key: keyof typeof filters) => (value: string) => setFilters({ ...filters, [key]: value })
   const hasAdjustments = adjustments.new !== 0 || adjustments.damaged !== 0
+  // القطع اللي في المخزن دلوقتي بالتكلفة وبالبيع وبالجملة (جديد + تالف)
+  const value = (price: 'purchase' | 'selling' | 'wholesale') => item.new_quantity * item[`new_${price}_price`] + item.damaged_quantity * item[`damaged_${price}_price`]
+  const stock = { pieces: item.new_quantity + item.damaged_quantity, cost: value('purchase'), selling: value('selling'), wholesale: value('wholesale') }
 
   return (
     <>
@@ -82,6 +85,14 @@ export default function ItemDetailsPage() {
       <div className="mb-3.5 grid grid-cols-2 gap-3.5">
         <StockSummary condition="new" item={item} />
         <StockSummary condition="damaged" item={item} />
+      </div>
+
+      {/* إجمالي فلوس القطع اللي في المخزن من المنتج (جديد + تالف) */}
+      <div className="mb-3.5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5 xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+        <StatCard label={t('details.stockPieces')} value={num(stock.pieces)} sub={t('details.stockPiecesSub', { new: num(item.new_quantity), damaged: num(item.damaged_quantity) })} tone="teal" />
+        <StatCard label={t('details.stockCost')} value={money(stock.cost)} sub={t('details.stockCostSub')} tone="indigo" big />
+        <StatCard label={t('details.stockSelling')} value={money(stock.selling)} sub={t('details.stockWholesaleSub', { amount: money(stock.wholesale) })} tone="teal" big />
+        <StatCard label={t('details.stockExpectedProfit')} value={money(stock.selling - stock.cost)} sub={t('details.stockExpectedProfitSub')} tone="green" />
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5 xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">

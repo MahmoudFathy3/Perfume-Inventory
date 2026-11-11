@@ -3,7 +3,10 @@ import { invoke } from '@/shared/api/ipc'
 
 export const backupApi = {
   export: () => invoke<{ done: boolean; filePath?: string }>('backup:export'),
-  import: () => invoke<{ done: boolean }>('backup:import'),
+  /** foreign = النسخة من جهاز تاني ومحتاجة كلمة سره (importForeign) */
+  import: () => invoke<{ done: boolean; foreign?: boolean; hasVault?: boolean }>('backup:import'),
+  /** نسخة جهاز تاني: كلمة سره القديمة أو مفتاح استرجاعه */
+  importForeign: (p: { secret: string }) => invoke<{ done: boolean }>('backup:import-foreign', p),
   history: () => invoke<DataTransfer[]>('backup:history'),
 
   // النسخ التلقائي

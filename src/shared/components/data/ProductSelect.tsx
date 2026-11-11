@@ -37,10 +37,12 @@ interface ProductSelectProps {
   tagOf?: (item: Item) => string | null
   /** أقسام في القايمة (قسم لكل مخزن). لو موجودة بتحل محل items في العرض */
   groups?: { label: string; items: Item[] }[]
+  /** نص خيار "اسم جديد" (الافتراضي: إضافة منتج جديد في المشتريات) */
+  createLabel?: (input: string) => string
 }
 
 /** Select بالبحث للمنتج. الاسم في القائمة «عربي - English» والبحث بيتجاهل الهمزة والتاء المربوطة. */
-export function ProductSelect({ items, value, onChange, allowCreate = false, tagOf, groups }: ProductSelectProps) {
+export function ProductSelect({ items, value, onChange, allowCreate = false, tagOf, groups, createLabel }: ProductSelectProps) {
   const { t, i18n } = useTranslation()
   const isRtl = getLanguage(i18n.language).dir === 'rtl'
 
@@ -112,7 +114,7 @@ export function ProductSelect({ items, value, onChange, allowCreate = false, tag
     <CreatableSelect<ProductOption, false>
       {...common}
       isValidNewOption={(input) => input.trim() !== '' && !items.some((i) => sameText(i.name_ar, input) || sameText(i.name_en, input))}
-      formatCreateLabel={(input) => t('purchases.createProduct', { name: input })}
+      formatCreateLabel={(input) => (createLabel ? createLabel(input) : t('purchases.createProduct', { name: input }))}
     />
   )
 }

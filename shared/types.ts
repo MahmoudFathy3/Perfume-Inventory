@@ -594,6 +594,8 @@ export interface Sale {
   id: number
   customer_id: number | null
   customer_name: string | null
+  /** تليفون العميل (لمشاركة الفاتورة على واتساب) */
+  customer_phone: string | null
   /** 1 = العميل شريك (بيتكتب جنب اسمه "(الشريك)") */
   customer_is_partner: number
   /** الشريك اللي عمل الفاتورة (في الشراكات بس) */
@@ -973,4 +975,92 @@ export interface ExportRequest extends ExportParams {
 export interface ExportResult {
   done: boolean
   filePath?: string
+}
+
+// ---------- الفواتير الحرّة (المخزون الفعلي بس) ----------
+/** سطر في فاتورة حرّة: item_id = منتج من المخزون (مبيتخصمش)، فاضي = بند من برّه بالاسم */
+export interface FreeInvoiceLineInput {
+  item_id?: number | null
+  /** جديد / تالف (الافتراضي جديد) */
+  condition?: Condition | null
+  name?: string
+  quantity: NumLike
+  unit_price: NumLike
+}
+
+export interface FreeInvoiceInput {
+  /** عميل متسجل، أو اسم وتليفون بيتكتبوا */
+  customer_id?: number | null
+  customer_name?: string
+  customer_phone?: string
+  invoice_date?: string
+  price_type?: PriceType
+  shipping_cost?: NumLike
+  discount?: NumLike
+  /** المدفوع وقت الإنشاء (الافتراضي الفاتورة كلها). الباقي بيتدفع بعد كده من دفعات الفاتورة */
+  paid?: NumLike
+  notes?: string
+  items: FreeInvoiceLineInput[]
+}
+
+export interface FreeInvoiceLine {
+  id: number
+  item_id: number | null
+  condition: Condition
+  name: string
+  /** الاسم الإنجليزي لمنتج المخزون (للطباعة) */
+  name_en: string | null
+  quantity: number
+  unit_price: number
+}
+
+export interface FreeInvoicePayment {
+  id: number
+  amount: number
+  payment_date: string
+  notes: string | null
+}
+
+export interface FreeInvoice {
+  id: number
+  workspace_id: number
+  invoice_date: string
+  customer_id: number | null
+  /** اسم العميل المتسجل أو المكتوب */
+  customer_name: string | null
+  customer_phone: string | null
+  price_type: PriceType
+  shipping_cost: number
+  discount: number
+  total: number
+  notes: string | null
+  /** فاتورة البيع اللي اتعملت من بنود المخزون */
+  sale_id: number | null
+  paid: number
+  remaining: number
+  lines_count: number
+  /** عدد سطور منتجات المخزون (لو صفر مفيش فاتورة بيع تتعمل منها) */
+  stock_lines: number
+}
+
+export interface FreeInvoiceWithLines extends FreeInvoice {
+  items: FreeInvoiceLine[]
+  payments: FreeInvoicePayment[]
+}
+
+export interface FreeInvoicePaymentInput {
+  invoice_id: number
+  amount: NumLike
+  payment_date?: string
+  notes?: string
+}
+
+/** فاتورة بيع حقيقية من بنود المخزون اللي في الفاتورة الحرّة (القطع بتتخصم والربح بيتحسب) */
+export interface FreeInvoiceToSaleInput {
+  id: number
+  /** الشريك اللي باع (لازم في الشراكة) */
+  partner_id?: number | null
+  /** المدفوع من فاتورة البيع (الافتراضي كلها) */
+  paid?: NumLike
+  notes?: string
 }

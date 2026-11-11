@@ -33,7 +33,9 @@
     "to": "To date",
     "deleting": "Deleting...",
     "print": "Print",
-    "savePdf": "Save PDF"
+    "savePdf": "Save PDF",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -49,7 +51,8 @@
     "partners": "Partner accounts",
     "collapse": "Collapse menu",
     "expand": "Expand menu",
-    "expenses": "Expenses"
+    "expenses": "Expenses",
+    "freeInvoices": "Custom invoices"
   },
   "condition": {
     "label": "Condition",
@@ -300,7 +303,14 @@
     "appNameDesc": "Current name: {{name}}",
     "appName": "App name",
     "appNameNote": "Shown in the sidebar, login screen, splash screen and window title. Leave it empty to use the default name.",
-    "appNameReset": "Default name"
+    "appNameReset": "Default name",
+    "foreignTitle": "Backup from another device",
+    "foreignNote": "This backup was made on another device with a different password. Enter the password that device had when the backup was made, and the app will open it and move it to this device.",
+    "foreignSecret": "Old device password (or its recovery key)",
+    "foreignSecretHint": "If you don’t remember the password, enter the recovery key the old device showed you (XXXX-XXXX-...).",
+    "foreignNoVault": "The vault file (same name as the backup, ending in .vault.json) isn’t next to the backup: you’ll be asked to pick it after entering the password.",
+    "foreignKeepPassword": "This device’s data will be replaced by the backup (a safety copy is made first). This device’s password stays the same, and the app restarts.",
+    "foreignImport": "Open backup and replace"
   },
   "errors": {
     "UNKNOWN": "Unexpected error",
@@ -360,7 +370,7 @@
     "NOT_SETUP": "No password has been set yet",
     "INVALID_IDLE": "Invalid auto-lock time",
     "PASSWORD_MISMATCH": "The two passwords do not match",
-    "BACKUP_KEY_MISMATCH": "This backup belongs to a different installation and cannot be opened here",
+    "BACKUP_KEY_MISMATCH": "This backup doesn’t open with this vault: make sure the .vault.json file is the one made with this exact backup",
     "AUTO_BACKUP_FAILED": "Automatic backup failed. Make sure the folder exists (or the drive is connected) and has free space",
     "NOT_WAREHOUSE": "This page is for external warehouses only. Switch to one from the sidebar.",
     "PARTNER_INVOICE_PAID": "The partner already paid part of this transfer’s invoice: delete those payments from their statement in the main store first",
@@ -372,12 +382,17 @@
     "PAID_BY_PARTNER": "A partner paid this invoice out of pocket; it has no supplier payments",
     "PAYMENT_NOT_FOUND": "Payment not found",
     "NAME_TOO_LONG": "The name is too long (40 characters max)",
-    "INVALID_MONTH": "Choose a valid month",
-    "MONTH_CLOSED": "This month is closed: you can’t add, edit or delete anything dated in it. Reopen it first from Monthly closing in Partner accounts",
-    "MONTH_HAS_UNPAID": "Some invoices or transfers in this month are still unpaid. Pay them first, then close the month",
-    "MONTH_NOT_ENDED": "The month isn’t over yet: you can close it from its last day",
-    "MONTH_ALREADY_CLOSED": "This month is already closed",
-    "MONTH_NOT_CLOSED": "This month isn’t closed"
+    "PERSONAL_ONLY": "Custom invoices are only available in your own stock",
+    "INVOICE_NOT_FOUND": "Invoice not found",
+    "DISCOUNT_TOO_BIG": "The discount is bigger than the invoice",
+    "FREE_INVOICE_HAS_SALE": "A sale invoice was created from this invoice: its stock products can’t be changed here (edit the sale invoice, or delete it to unlink)",
+    "NO_STOCK_LINES": "This invoice has no products from your stock to record as a sale",
+    "STORE_ONLY": "Custom invoices are only available in your own stock and partnerships",
+    "CAPTURE_FAILED": "Couldn’t create the invoice image. Try PDF",
+    "INVALID_PHONE": "Invalid phone number",
+    "BACKUP_WRONG_PASSWORD": "Wrong backup password or recovery key (enter the old device’s password, not this one’s)",
+    "IMPORT_EXPIRED": "Pick the backup file again from the import button",
+    "INVALID_VAULT_FILE": "This vault file isn’t valid: pick the .vault.json file that was made with the backup"
   },
   "app": {
     "name": "Perfume Inventory"
@@ -414,7 +429,16 @@
       "sale": "Sale invoice",
       "sale_return": "Sale return",
       "purchase_return": "Purchase return"
-    }
+    },
+    "piecesTotal": "Total for {{count}} pcs",
+    "stockPieces": "Pieces in stock",
+    "stockPiecesSub": "New {{new}} · Damaged {{damaged}}",
+    "stockCost": "Stock value at cost",
+    "stockCostSub": "Money tied up in this product (capital)",
+    "stockSelling": "Stock value at selling price",
+    "stockWholesaleSub": "At wholesale: {{amount}}",
+    "stockExpectedProfit": "Expected profit",
+    "stockExpectedProfitSub": "If all sold at selling price"
   },
   "export": {
     "button": "Export",
@@ -607,7 +631,12 @@
     "creditUsed": "Used from credit",
     "credit": "Credit",
     "returns": "Returns",
-    "toAccount": "Credited to the customer (off their balance or as credit)"
+    "toAccount": "Credited to the customer (off their balance or as credit)",
+    "free_invoiceTitle": "Invoice",
+    "discount": "Discount",
+    "productTotals": "Total per product",
+    "totalQuantity": "Total quantity",
+    "productTotal": "Total"
   },
   "toast": {
     "created": "Added successfully",
@@ -1030,5 +1059,67 @@
     "recordOnlySub": "Not counted in profit",
     "noTypes": "No types yet. Type a new one",
     "createType": "Add type “{{name}}”"
+  },
+  "freeInvoices": {
+    "title": "Custom invoices",
+    "add": "New invoice",
+    "edit": "Edit invoice #{{id}}",
+    "note": "An invoice for the customer with anything on it (from your stock or from elsewhere) so they see the total. It doesn’t deduct stock and isn’t counted in sales, profit or customer accounts. If it has products from your stock, use \"Record sale\" to deduct them.",
+    "personalOnly": "Custom invoices are available in your own stock and partnerships, not in an external warehouse.",
+    "empty": "No custom invoices yet",
+    "customer": "Customer",
+    "customerName": "Customer name",
+    "customerNameHint": "If not registered",
+    "customerPhone": "Customer phone",
+    "line": "Product / item",
+    "lines": "Items",
+    "linesCount": "{{count}} items ({{stock}} from stock)",
+    "addLine": "Add item",
+    "externalItem": "Outside item: \"{{name}}\"",
+    "fromStock": "From this store (not deducted unless you record a sale)",
+    "external": "From elsewhere",
+    "shipping": "Shipping",
+    "status": "Status",
+    "sale": "Sale invoice",
+    "saleBadge": "Sale #{{id}}",
+    "toSale": "Record sale",
+    "toSaleTitle": "Record a sale from invoice #{{id}}",
+    "toSaleNote": "A real sale invoice is created with only your stock products from this invoice (same quantities, prices, date and customer): pieces are deducted and profit is counted. Outside items, shipping and discount are not included.",
+    "toSaleNoCustomer": "This invoice has no registered customer, so the sale must be fully paid. If the customer still owes, choose a registered customer on the invoice first.",
+    "saleTotal": "Sale invoice total",
+    "confirmToSale": "Record sale invoice",
+    "saleNote": "From custom invoice #{{id}}",
+    "saleCreated": "Sale invoice #{{id}} created",
+    "linkedEditNote": "Sale invoice #{{id}} was created from this invoice: its stock products can’t be changed here, but you can edit outside items as usual.",
+    "payments": "Payments",
+    "paymentsTitle": "Payments for invoice #{{id}} — {{name}}",
+    "paymentsList": "Payments",
+    "noPayments": "No payments yet",
+    "newPayment": "New payment",
+    "payAll": "All remaining ({{amount}})",
+    "deleteNote": "The invoice and its payments will be deleted. Any sale invoice created from it stays as is."
+  },
+  "share": {
+    "whatsapp": "WhatsApp",
+    "asImage": "Send as image",
+    "asPdf": "Send as PDF",
+    "imageReady": "WhatsApp opened: the image appears in the chat in a few seconds, press send. If it doesn’t, press Ctrl+V.",
+    "pdfReady": "WhatsApp opened: the file appears in the chat in a few seconds, press send. If it doesn’t, its folder opens so you can drag it.",
+    "title": "Send invoice on WhatsApp",
+    "format": "Send as",
+    "imageHow": "The image is put into the chat for you; just press send",
+    "pdfHow": "The file is put into the chat for you; just press send",
+    "to": "To",
+    "toCustomer": "Customer ({{phone}})",
+    "toNumber": "Another number",
+    "toPick": "Pick a chat in WhatsApp",
+    "pickHow": "Click any chat or group in WhatsApp; as soon as it opens the invoice is put into it",
+    "number": "Number",
+    "message": "Message",
+    "defaultMessage": "{{title}} #{{id}} — Total {{total}}",
+    "send": "Open WhatsApp",
+    "preparing": "Preparing the invoice...",
+    "pickChat": "Click the chat you want to send to in WhatsApp.",
+    "loginNote": "First time only: scan the QR code from WhatsApp on your phone (Linked devices) to open WhatsApp inside the app."
   }
 }

@@ -1,6 +1,9 @@
+import fs from 'node:fs'
 import path from 'node:path'
-import type { HandleFn } from '../../lib/ipc'
 import type { IpcContext } from '../../lib/context'
+import { AppError } from '../../lib/errors'
+import type { HandleFn } from '../../lib/ipc'
+import { parseVault } from '../../security/vaultStore'
 import * as auto from './autoBackup.service'
 import * as backup from './backup.service'
 
@@ -36,13 +39,52 @@ export function register(handle: HandleFn, { dialog, app, config, session }: Ipc
     return { done: true, filePath: res.filePath }
   })
 
+  /**
+   * نسخة من جهاز تاني مستنية كلمة سرها (الملف بيتحفظ هنا في الـ main، والواجهة بتبعت كلمة السر بس).
+   * بتبطل بعد 15 دقيقة أو أول استيراد ناجح.
+   */
+  let pendingForeign: { file: string; vault: string | null; at: number } | null = null
+  const PENDING_MS = 15 * 60 * 1000
+
   handle('backup:import', async () => {
     const res = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'SQLite', extensions: ['sqlite', 'db'] }]
     })
     if (res.canceled) return { done: false }
-    backup.importFrom(res.filePaths[0], config.read().dbPath, session.dbKey())
+    const file = res.filePaths[0]
+    try {
+      backup.importFrom(file, config.read().dbPath, session.dbKey())
+    } catch (e) {
+      // مشفّرة بمفتاح جهاز تاني: محتاجين خزنتها (جنبها) وكلمة سر الجهاز ده القديم
+      if (!(e instanceof AppError) || e.code !== 'BACKUP_KEY_MISMATCH') throw e
+      const vault = fs.existsSync(backup.vaultCopyPath(file)) ? backup.vaultCopyPath(file) : null
+      pendingForeign = { file, vault, at: Date.now() }
+      return { done: false, foreign: true, hasVault: vault !== null }
+    }
+    app.relaunch()
+    app.exit(0)
+    return { done: true }
+  })
+
+  /** الخطوة التانية لنسخة جهاز تاني: كلمة سره القديمة أو مفتاح استرجاعه (والخزنة لو مش جنب النسخة) */
+  handle('backup:import-foreign', async ({ secret }: { secret: string }) => {
+    if (!pendingForeign || Date.now() - pendingForeign.at > PENDING_MS) throw new AppError('IMPORT_EXPIRED')
+    if (!pendingForeign.vault) {
+      const res = await dialog.showOpenDialog({ properties: ['openFile'], filters: [{ name: 'Vault', extensions: ['json'] }] })
+      if (res.canceled) return { done: false }
+      pendingForeign.vault = res.filePaths[0]
+    }
+    let vault
+    try {
+      vault = parseVault(fs.readFileSync(pendingForeign.vault, 'utf8'))
+    } catch {
+      pendingForeign.vault = null // تختار ملف تاني المرة الجاية
+      throw new AppError('INVALID_VAULT_FILE')
+    }
+    const foreignKey = session.foreignBackupKey(vault, secret)
+    backup.importForeign(pendingForeign.file, foreignKey, config.read().dbPath, session.dbKey())
+    pendingForeign = null
     app.relaunch()
     app.exit(0)
     return { done: true }

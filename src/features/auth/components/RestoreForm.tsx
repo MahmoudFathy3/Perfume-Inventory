@@ -1,7 +1,7 @@
 import { FolderOpen } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Button, Field, Input } from '@/shared/components/ui'
+import { Alert, Button, Field, PasswordInput } from '@/shared/components/ui'
 import { useSubmit } from '@/shared/hooks/useSubmit'
 import { authApi } from '../api/auth.api'
 import { useAuth } from '../AuthProvider'
@@ -24,7 +24,7 @@ export function RestoreForm({ onBack }: { onBack: () => void }) {
     <AuthShell title={t('auth.restoreTitle')} subtitle={t('auth.restoreSubtitle')}>
       <form onSubmit={submit}>
         <Field label={t('auth.backupPassword')}>
-          <Input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Alert tone="info">{t('auth.restoreNote')}</Alert>
         <div className="mt-2 flex gap-2">

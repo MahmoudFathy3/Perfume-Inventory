@@ -33,7 +33,7 @@ export interface SaleLineRow {
 
 /** الفاتورة مع المدفوع والمرتجع والمتبقي (المتبقي = الإجمالي - المرتجع - المدفوع، مش أقل من صفر) */
 const selectSales = () => `
-  SELECT s.id, s.customer_id, cu.name AS customer_name, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, s.partner_id, wp.name AS partner_name, s.sale_date, s.price_type, s.shipping_payer,
+  SELECT s.id, s.customer_id, cu.name AS customer_name, cu.phone AS customer_phone, EXISTS(SELECT 1 FROM workspace_partners px WHERE px.customer_id = s.customer_id) AS customer_is_partner, s.partner_id, wp.name AS partner_name, s.sale_date, s.price_type, s.shipping_payer,
          s.shipping_cost, s.total, s.notes,
          ROUND(${salePaid('s.id')}, 2) AS paid,
          ROUND(${saleReturns('s.id')}, 2) AS returns_total,
