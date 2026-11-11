@@ -16,6 +16,8 @@ export interface IpcContext {
   capture: (html: string, dir: string) => Promise<NativeImage>
   /** فتح واتساب ويب جوه البرنامج على الشات وحط الفاتورة فيه */
   whatsapp: (options: WhatsAppShareOptions) => Promise<void>
+  /** فتح واتساب جوه البرنامج من غير مشاركة (زرار الرئيسية) */
+  openWhatsApp: () => Promise<void>
   /** كلمة السر والقفل */
   session: Session
 }
