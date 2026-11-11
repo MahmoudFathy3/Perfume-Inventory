@@ -1,6 +1,9 @@
+import { MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { PageHeader, StatCard } from '@/shared/components/ui'
+import { invoke } from '@/shared/api/ipc'
+import { Button, PageHeader, StatCard } from '@/shared/components/ui'
+import { useToast } from '@/shared/toast/ToastProvider'
 import { StockCountButton } from '@/features/items'
 import { WarehousePage } from '@/features/warehouse'
 import { useWorkspaces } from '@/features/workspaces'
@@ -36,10 +39,21 @@ function StoreDashboard() {
   const money = (v: number) => formatMoney(v, lang)
   const num = (v: number) => formatNumber(v, lang)
   const current = t('dashboard.currentNote')
+  const toast = useToast()
+
+  /** واتساب جوه البرنامج (نفس النافذة اللي بتتبعت منها الفواتير) */
+  async function openWhatsApp() {
+    try {
+      await invoke('share:open-whatsapp')
+    } catch (e) {
+      toast.fail(e)
+    }
+  }
 
   return (
     <>
       <PageHeader title={<>{t('dashboard.title')} <small className="font-normal text-slate-500">— {label(active)}</small></>}>
+        <Button icon={MessageCircle} onClick={() => void openWhatsApp()} className="!border-green-200 !text-green-700 hover:!bg-green-50">{t('share.whatsapp')}</Button>
         <StockCountButton />
         <CopyStockButtons />
       </PageHeader>
