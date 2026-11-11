@@ -5,7 +5,7 @@ import type { Migration } from '../migrate'
  * وأي فاتورة / دفعة / مصروف / تحويل / تسوية بتاريخ في الشهر ده مبتتعدّلش لحد ما الشهر يتفتح تاني.
  */
 const migration: Migration = {
-  id: '019_month_closings',
+  id: '021_month_closings',
   sql: `
 CREATE TABLE IF NOT EXISTS month_closings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
