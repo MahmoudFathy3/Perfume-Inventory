@@ -196,6 +196,15 @@ export async function shareOnWhatsApp(options: WhatsAppShareOptions): Promise<vo
   attachWhenReady(contents, options, hasComposer(contents), options.phone ? 60_000 : 180_000, !!options.phone, run)
 }
 
+/** فتح واتساب جوه البرنامج (زرار الرئيسية): لو مفتوح بيظهر زي ما هو، ولو أول مرة بيتحمّل */
+export async function showWhatsApp(): Promise<void> {
+  const window = getWindow()
+  if (window.isMinimized()) window.restore()
+  window.show()
+  window.focus()
+  if (!window.webContents.getURL().startsWith(ORIGIN)) await window.loadURL(ORIGIN)
+}
+
 /** قفل البرنامج بيخفي نافذة واتساب (المحادثات مبتفضلش ظاهرة والبرنامج مقفول) */
 export function hideWhatsApp(): void {
   if (win && !win.isDestroyed()) win.hide()

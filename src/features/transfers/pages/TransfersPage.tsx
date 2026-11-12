@@ -2,6 +2,7 @@ import { FilterX, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Transfer, TransferDetails, TransferInput, TransferKind, TransfersFilter } from '@shared/types'
+import { ExportMenu } from '@/shared/components/data/ExportMenu'
 import { Pagination } from '@/shared/components/data/Pagination'
 import { SearchBar } from '@/shared/components/data/SearchBar'
 import { Alert, Button, Card, Field, Input, Modal, PageHeader, Select } from '@/shared/components/ui'
@@ -94,6 +95,7 @@ export default function TransfersPage() {
     <>
       <PageHeader title={t('transfers.title')}>
         <SearchBar value={filter.search} onChange={set('search')} />
+        <ExportMenu target={{ dataset: 'transfers', ...filter }} />
         <Button variant="primary" icon={Plus} onClick={() => setForm({ transfer: null })}>{t('transfers.add')}</Button>
       </PageHeader>
 
