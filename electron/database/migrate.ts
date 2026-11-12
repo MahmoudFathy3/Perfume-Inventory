@@ -21,6 +21,7 @@ import m018 from './migrations/018_purchase_joint'
 import m019 from './migrations/019_free_invoices'
 import m020 from './migrations/020_free_invoice_workspace'
 import m021 from './migrations/021_month_closings'
+import m022 from './migrations/022_day_closings'
 /** migration = SQL ثابت (sql) أو كود بيشغّله على الداتا بيز (up) لما محتاجين شرط أو حساب */
 export interface Migration {
   id: string
@@ -31,7 +32,7 @@ export interface Migration {
 }
 
 /** كل migration في ملف لوحده في migrations/. ضيف الجديد هنا بالترتيب. متعدّلش migration اتنفّذت قبل كده: اعمل واحدة جديدة. */
-const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m016, m017, m018, m019, m020, m021]
+const migrations: Migration[] = [m001, m002, m003, m004, m005, m006, m007, m008, m009, m010, m011, m012, m013, m014, m015, m016, m017, m018, m019, m020, m021, m022]
 
 /** نسخة احتياطية من ملف الداتا بيز قبل أي تحويل على داتا موجودة */
 function backupBeforeMigration(db: Db, firstId: string): void {

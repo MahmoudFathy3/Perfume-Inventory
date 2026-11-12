@@ -90,7 +90,7 @@ export function payPurchase(input: PurchasePaymentInput): number {
   const purchase = repo.findById(Number(input.purchase_id))
   if (!purchase) throw new AppError('PURCHASE_NOT_FOUND')
   if (purchase.paid_by_partner === 1) throw new AppError('PAID_BY_PARTNER')
-  assertPurchaseOpen(purchase.id)
+  assertPurchaseOpen(purchase.id, { day: false }) // الدفع في يوم تاني على فاتورة يوم مقفول مسموح
   if (purchase.remaining <= 0) throw new AppError('NOTHING_DUE')
   const amount = positiveAmount(input.amount)
   if (amount > purchase.remaining + EPS) throw new AppError('PAYMENT_EXCEEDS_REMAINING')

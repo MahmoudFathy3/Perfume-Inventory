@@ -208,7 +208,7 @@ export const payTransfer = (input: TransferPaymentInput): number =>
     const partnership = transfer.from_workspace_id === PERSONAL_WORKSPACE_ID ? transfer.to_workspace_id : transfer.from_workspace_id
     if (workspaces.findById(partnership)?.closed_at) throw new AppError('WORKSPACE_CLOSED')
 
-    assertTransferOpen(transfer.id)
+    assertTransferOpen(transfer.id, { day: false }) // الدفع في يوم تاني على تحويل يوم مقفول مسموح
     const date = input.payment_date || today()
     assertOpen(date, [transfer.from_workspace_id, transfer.to_workspace_id])
 

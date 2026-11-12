@@ -1,9 +1,13 @@
 import type { ExportParams } from '@shared/types'
 import { today } from '../../../lib/errors'
-import { monthlyClosing } from '../../partners/partners.service'
+import { dayPartnerClosing, monthlyClosing } from '../../partners/partners.service'
 import { type Row, type SheetDef, col } from './sheet'
 
-const closingOf = ({ month }: ExportParams) => monthlyClosing({ month: month || today().slice(0, 7) })
+/** month = YYYY-MM (شهر) أو YYYY-MM-DD (يوم) */
+const closingOf = ({ month }: ExportParams) => {
+  const key = month || today().slice(0, 7)
+  return key.length === 10 ? dayPartnerClosing({ day: key }) : monthlyClosing({ month: key })
+}
 
 /** أرقام الشهر في الشراكة */
 export const closingSummarySheet: SheetDef = {

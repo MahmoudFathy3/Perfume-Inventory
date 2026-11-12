@@ -50,6 +50,11 @@ function Accounts() {
   const [transferring, setTransferring] = useState(false)
   const [closing, setClosing] = useState<{ month?: string } | null>(null) // month = شهر مقفول اتفتح من الجدول
   const closedMonths = useQuery(() => partnersApi.closedMonths(), [])
+  const closedDays = useQuery(() => partnersApi.closedDays(), [])
+  const refreshClosings = () => {
+    closedMonths.reload()
+    closedDays.reload()
+  }
   const [range, setRange] = useState<DateRange>({ from: '', to: '' })
   const sales = useQuery(() => partnersApi.sales({ from: range.from || null, to: range.to || null }), [range.from, range.to])
   const { reload } = ledger
@@ -114,6 +119,10 @@ function Accounts() {
           <p className="mb-3 text-sm text-slate-500">{t('partners.closing.closedTitleNote')}</p>
           {closedMonths.data && <ClosedMonthsTable months={closedMonths.data} onOpen={(month) => setClosing({ month })} />}
 
+          <h2 className="mb-1 mt-6">{t('partners.closing.day.closedTitle')}</h2>
+          <p className="mb-3 text-sm text-slate-500">{t('partners.closing.day.closedTitleNote')}</p>
+          {closedDays.data && <ClosedMonthsTable months={closedDays.data} onOpen={(day) => setClosing({ month: day })} emptyText={t('partners.closing.day.noClosed')} />}
+
           <h2 className="mb-3 mt-6">{t('partners.payments')}</h2>
           <PaymentsTable rows={data.payments} onDelete={ask} />
         </>
@@ -123,7 +132,7 @@ function Accounts() {
           <PaymentForm account={settling} onSubmit={pay} onCancel={() => setSettling(null)} />
         </Modal>
       )}
-      {closing && <MonthlyClosingModal initialMonth={closing.month} onChanged={closedMonths.reload} onClose={() => setClosing(null)} />}
+      {closing && <MonthlyClosingModal initialMonth={closing.month} onChanged={refreshClosings} onClose={() => setClosing(null)} />}
       {details && <PartnerStatementModal partnerId={details.partner.id} name={details.partner.name} onClose={() => setDetails(null)} />}
       {transferring && data && (
         <Modal title={t('partners.transferTitle')} onClose={() => setTransferring(false)}>

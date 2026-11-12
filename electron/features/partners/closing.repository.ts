@@ -6,23 +6,24 @@ import { saleRemaining } from '../../lib/salePaid'
  * اللي لسه عليه فلوس في شهر الشراكة: فواتير البيع (على العملاء)، وفواتير الشراء (للموردين، غير اللي الشريك دفعها من جيبه)،
  * وتحويلات البيع بسعر اللي الشراكة طرف فيها
  */
+/** period = الشهر (YYYY-MM) أو اليوم (YYYY-MM-DD): بنقارن أول حروف التاريخ بيه */
 export const unpaid = (ws: number, month: string) =>
   queryAll<ClosingUnpaid>(
     `SELECT * FROM (
        SELECT 'sale' AS type, s.id, s.sale_date AS date, cu.name AS party, ${saleRemaining('s.id', 's.total')} AS remaining
        FROM sales s LEFT JOIN customers cu ON cu.id = s.customer_id
-       WHERE s.workspace_id = @ws AND substr(s.sale_date, 1, 7) = @month
+       WHERE s.workspace_id = @ws AND substr(s.sale_date, 1, length(@month)) = @month
        UNION ALL
        SELECT 'purchase', p.id, p.purchase_date, p.supplier_name,
               MAX(0, ROUND(p.total - COALESCE((SELECT SUM(total) FROM returns WHERE purchase_id = p.id), 0)
                                    - COALESCE((SELECT SUM(amount) FROM purchase_payments WHERE purchase_id = p.id), 0), 2))
        FROM purchases p
-       WHERE p.workspace_id = @ws AND p.paid_by_partner = 0 AND substr(p.purchase_date, 1, 7) = @month
+       WHERE p.workspace_id = @ws AND p.paid_by_partner = 0 AND substr(p.purchase_date, 1, length(@month)) = @month
        UNION ALL
        SELECT 'transfer', t.id, t.transfer_date, wp.name,
               MAX(0, ROUND(t.total_price - COALESCE((SELECT ABS(SUM(amount)) FROM partner_payments WHERE transfer_id = t.id), 0), 2))
        FROM transfers t LEFT JOIN workspace_partners wp ON wp.id = t.partner_id
-       WHERE t.kind = 'sale' AND (t.from_workspace_id = @ws OR t.to_workspace_id = @ws) AND substr(t.transfer_date, 1, 7) = @month
+       WHERE t.kind = 'sale' AND (t.from_workspace_id = @ws OR t.to_workspace_id = @ws) AND substr(t.transfer_date, 1, length(@month)) = @month
      ) WHERE remaining > 0.005 ORDER BY date, type, id`,
     { ws, month }
   )
@@ -44,7 +45,9 @@ const PARTNER_COLUMNS = `partner_id, partner_name, share_percent, opening, profi
 
 type PartnerRowDb = Omit<PartnerClosingRow, 'partner'> & { closing_id: number; partner_id: number; partner_name: string; share_percent: number }
 
+// الشهر المقفول اتسوّى قبل التقفيل، فاللي لسه محتاج يتسوّى = صفر
 const toRow = ({ partner_id, partner_name, share_percent, closing_id: _, ...r }: PartnerRowDb): PartnerClosingRow => ({
+  due: 0,
   partner: { id: partner_id, name: partner_name, share_percent },
   ...r
 })
@@ -107,3 +110,31 @@ export function insertClosing(ws: number, c: MonthlyClosing, closedAt: string, n
 }
 
 export const removeClosing = (id: number) => void execute('DELETE FROM month_closings WHERE id = ?', [id])
+
+/**
+ * دفعات تحويلات اتعملت بعد يوم معين على تحويلات بتاريخه أو قبله، لكل شريك (موجب = الشراكة دفعت له).
+ * حساب الفترة بيقف عند آخرها فمبيشوفهاش، فالتسوية لازم تطرحها علشان المبلغ ميتدفعش مرتين.
+ */
+export const laterTransferPayments = (ws: number, until: string) =>
+  new Map(
+    queryAll<{ partner_id: number; amount: number }>(
+      `SELECT pp.partner_id, ROUND(SUM(pp.amount), 2) AS amount FROM partner_payments pp JOIN transfers t ON t.id = pp.transfer_id
+       WHERE pp.workspace_id = @ws AND pp.payment_date > @until AND t.transfer_date <= @until GROUP BY pp.partner_id`,
+      { ws, until }
+    ).map((r) => [r.partner_id, r.amount])
+  )
+
+/**
+ * تحويلات "بيع بسعر" اللي الشراكة طرف فيها ولسه عليها فلوس لحد يوم معين (داخلة في حساب الشريك كـ "باعه للشراكة"):
+ * into_ws = 1 لو القطع دخلت الشراكة (الشراكة تدفع للشريك)، 0 لو خرجت منها (الشريك يدفع للشراكة)
+ */
+export const unpaidSaleTransfers = (ws: number, until: string) =>
+  queryAll<{ id: number; partner_id: number; into_ws: number; remaining: number }>(
+    `SELECT * FROM (
+       SELECT t.id, t.partner_id, t.transfer_date, t.to_workspace_id = @ws AS into_ws,
+              ROUND(t.total_price - COALESCE((SELECT ABS(SUM(amount)) FROM partner_payments WHERE transfer_id = t.id), 0), 2) AS remaining
+       FROM transfers t
+       WHERE t.kind = 'sale' AND t.partner_id IS NOT NULL AND (t.from_workspace_id = @ws OR t.to_workspace_id = @ws) AND t.transfer_date <= @until
+     ) WHERE remaining > 0.005 ORDER BY transfer_date, id`,
+    { ws, until }
+  )

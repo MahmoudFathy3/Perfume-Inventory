@@ -8,22 +8,23 @@ import { monthName } from './MonthlyClosingModal'
  * الشهور المقفولة في الشراكة (الأحدث الأول): لكل شهر كل شريك نصيبه من الربح كام، وخد كام، وفضل له كام.
  * الأرقام زي ما اتحفظت وقت التقفيل. الضغط على الشهر بيفتح تفاصيله.
  */
-export function ClosedMonthsTable({ months, onOpen }: { months: ClosedMonth[]; onOpen: (month: string) => void }) {
+export function ClosedMonthsTable({ months, onOpen, emptyText }: { months: ClosedMonth[]; onOpen: (month: string) => void; emptyText?: string }) {
   const { t, i18n } = useTranslation()
   const money = (v: number) => formatMoney(v, i18n.language)
-  if (months.length === 0) return <EmptyState>{t('partners.closing.noClosed')}</EmptyState>
+  const isDay = months[0]?.month.length === 10
+  if (months.length === 0) return <EmptyState>{emptyText ?? t('partners.closing.noClosed')}</EmptyState>
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-slate-600">
           <tr>
-            <th className="px-3 py-2.5 text-start">{t('partners.closing.month')}</th>
+            <th className="px-3 py-2.5 text-start">{t(isDay ? 'partners.closing.day.label' : 'partners.closing.month')}</th>
             <th className="px-3 py-2.5 text-end">{t('dashboard.netProfit')}</th>
             <th className="px-3 py-2.5 text-start">{t('partners.closing.partner')}</th>
             <th className="px-3 py-2.5 text-end">{t('partners.profitShare')}</th>
-            <th className="px-3 py-2.5 text-end">{t('partners.closing.took')}</th>
-            <th className="px-3 py-2.5 text-end">{t('partners.closing.closing')}</th>
+            <th className="px-3 py-2.5 text-end">{t(isDay ? 'partners.closing.day.took' : 'partners.closing.took')}</th>
+            <th className="px-3 py-2.5 text-end">{t(isDay ? 'partners.closing.day.closing' : 'partners.closing.closing')}</th>
           </tr>
         </thead>
         {months.map((m) => (
@@ -34,7 +35,7 @@ export function ClosedMonthsTable({ months, onOpen }: { months: ClosedMonth[]; o
                   <>
                     <td rowSpan={m.rows.length} className="px-3 py-2.5 align-top">
                       <button type="button" className="font-bold text-primary-700 hover:underline" onClick={() => onOpen(m.month)}>
-                        {monthName(m.month, i18n.language)}
+                        {m.month.length === 10 ? formatDate(m.month) : monthName(m.month, i18n.language)}
                       </button>
                       <small className="block text-slate-500">{t('partners.closing.closedOn', { date: formatDate(m.closed_at.slice(0, 10)) })}</small>
                       {m.notes && <small className="block text-slate-500">{m.notes}</small>}

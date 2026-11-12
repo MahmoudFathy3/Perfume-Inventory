@@ -86,7 +86,13 @@ test('بعد ما كله يتدفع الشهر بيتقفل وأرقامه بت�
     transfers.payTransfer({ transfer_id: transferId, amount: 300, payment_date: '2020-02-02' }) // الدفع في فبراير عادي
     assert.deepEqual(partners.monthlyClosing({ month: '2020-01' }).unpaid, [])
 
+    // من غير تسوية الشهر مبيتقفلش، وبعد "تسوية الكل" بيتقفل
+    assert.equal(err(() => partners.closeMonth({ month: '2020-01' })), 'MONTH_NOT_SETTLED')
+    const settled = partners.settleMonth({ month: '2020-01' })
+    // التحويل اتدفع في فبراير: نصيب صاحبه من يناير بيتطرح منه الـ 300 دي (ميتدفعش مرتين)
+    assert.ok(settled.every((s) => Math.abs(s.amount) < 300), 'مفيش 300 اتدفعوا تاني')
     const live = partners.monthlyClosing({ month: '2020-01' })
+    assert.ok(live.rows.every((r) => r.due === 0))
     partners.closeMonth({ month: '2020-01', notes: 'اتقسم' })
     assert.equal(err(() => partners.closeMonth({ month: '2020-01' })), 'MONTH_ALREADY_CLOSED')
 
@@ -98,7 +104,8 @@ test('بعد ما كله يتدفع الشهر بيتقفل وأرقامه بت�
     const [month] = partners.closedMonths()
     assert.equal(month.month, '2020-01')
     const a = month.rows.find((r) => r.partner.id === ahmed)!
-    assert.deepEqual([a.partner.name, a.settled], ['أحمد', 50], 'أحمد خد 50 في يناير')
+    assert.equal(a.partner.name, 'أحمد')
+    assert.ok(a.settled >= 50, 'أحمد خد الـ 50 بتوعه وتسوية آخر الشهر')
 
     // حركة جديدة في فبراير مبتغيّرش أرقام يناير المحفوظة
     expenses.createExpense({ category: 'إيجار', amount: 999, expense_date: '2020-02-05' })

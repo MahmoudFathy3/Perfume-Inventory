@@ -6,6 +6,7 @@ import * as backup from './backup/backup.ipc'
 import * as categories from './categories/categories.ipc'
 import * as clipboard from './clipboard/clipboard.ipc'
 import * as customers from './customers/customers.ipc'
+import * as dailyClosing from './dailyClosing/dailyClosing.ipc'
 import * as dashboard from './dashboard/dashboard.ipc'
 import * as exporting from './export/export.ipc'
 import * as freeInvoices from './freeInvoices/freeInvoices.ipc'
@@ -29,6 +30,6 @@ export function registerAll(ctx: IpcContext): void {
   const handle = createHandle(ctx.ipcMain, (channel) => {
     if (!channel.startsWith('auth:') && channel !== 'app:name' && ctx.session.state() !== 'unlocked') throw new AppError('LOCKED')
   })
-  const features = [auth, workspaces, categories, items, purchases, sales, freeInvoices, customers, payments, returns, transfers, expenses, warehouse, partners, dashboard, settings, backup, exporting, printing, share, clipboard]
+  const features = [auth, workspaces, categories, items, purchases, sales, freeInvoices, customers, payments, returns, transfers, expenses, warehouse, partners, dailyClosing, dashboard, settings, backup, exporting, printing, share, clipboard]
   for (const feature of features) feature.register(handle, ctx)
 }

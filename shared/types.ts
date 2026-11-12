@@ -254,6 +254,11 @@ export interface PartnerPaymentInput {
   direction: 'to_partner' | 'from_partner'
   payment_date?: string
   notes?: string
+  /**
+   * المبلغ يروح الأول لتحويلات "بيع بسعر" اللي لسه ما اتدفعتش (الأقدم الأول) فتتعلّم مدفوعة، والباقي تسوية عادية.
+   * من غيرها التحويل بيفضل "ما اتدفعش" والشريك ممكن ياخده تاني لما يتدفع.
+   */
+  apply_to_transfers?: boolean
 }
 
 /** حساب شريك واحد داخل الشراكة */
@@ -270,6 +275,8 @@ export interface PartnerAccount {
   settled: number
   /** المستحق دلوقتي: موجب = الشراكة مدينة للشريك، سالب = الشريك مدين */
   balance: number
+  /** تحويلات "بيع بسعر" لسه ما اتدفعتش: owed_to = الشراكة عليها له، owed_by = هو عليه للشراكة */
+  unpaid_transfers: { owed_to: number; owed_by: number }
   /** حسابه كعميل في المخزون الفعلي (اللي أخده لنفسه). null لصاحب المخزون */
   store_account: { customer_id: number; sales_count: number; total: number; paid: number; remaining: number } | null
 }
@@ -319,13 +326,20 @@ export interface PartnerClosingRow {
   settled: number
   /** الباقي له آخر الشهر */
   closing: number
+  /**
+   * اللي لسه محتاج يتسوّى = الباقي آخر الفترة − دفعات تحويلات اتعملت بعدها على تحويلات منها
+   * (الحساب بيقف عند آخر الفترة فمبيشوفهاش). صفر = اتسوّى
+   */
+  due?: number
   /** رأس ماله آخر الشهر (بيرجع له في التصفية، مش داخل في الباقي) */
   capital: number
 }
 
-/** تقفيل شهر في الشراكة: أرقام الشهر وحساب كل شريك فيه */
+/** تقفيل شهر (أو يوم) في الشراكة: أرقام الفترة وحساب كل شريك فيها */
 export interface MonthlyClosing {
-  /** YYYY-MM */
+  /** month = شهر، day = يوم واحد */
+  period: 'month' | 'day'
+  /** YYYY-MM للشهر، أو YYYY-MM-DD لليوم */
   month: string
   from: string
   to: string
@@ -1063,4 +1077,96 @@ export interface FreeInvoiceToSaleInput {
   /** المدفوع من فاتورة البيع (الافتراضي كلها) */
   paid?: NumLike
   notes?: string
+}
+
+// ---------- التقفيل اليومي (المخزون الفعلي والشراكات) ----------
+export interface DaySale {
+  id: number
+  customer: string | null
+  total: number
+  paid: number
+  remaining: number
+}
+export interface DayReturn {
+  id: number
+  sale_id: number | null
+  total: number
+}
+export interface DayPurchase {
+  id: number
+  supplier: string
+  total: number
+  /** الشريك (أو الشريكين) دفعها من جيبه */
+  paid_by_partner: boolean
+}
+export interface DaySettlement {
+  id: number
+  /** موجب = الشراكة دفعت له (خد)، سالب = هو دفع للشراكة */
+  amount: number
+  /** payment = تسوية، transfer_payment = دفع تحويل، pair = تسوية بين الشريكين */
+  kind: 'payment' | 'transfer_payment' | 'pair'
+  notes: string | null
+}
+export interface DayExpense {
+  id: number
+  category: string
+  amount: number
+  deduct: boolean
+  notes: string | null
+}
+
+/**
+ * اللي اتعمل في اليوم لشريك واحد (partner) أو للمحل كله في المخزون الفعلي (store)،
+ * أو الفواتير القديمة من غير شريك (unassigned)، أو مشتريات الشريكين مع بعض (joint)
+ */
+export interface DayGroup {
+  kind: 'partner' | 'joint' | 'unassigned' | 'store'
+  partner: { id: number; name: string } | null
+  sales: DaySale[]
+  returns: DayReturn[]
+  purchases: DayPurchase[]
+  settlements: DaySettlement[]
+  sales_total: number
+  returns_total: number
+  purchases_total: number
+  /** صافي اللي خده من الشراكة في اليوم (التسويات) */
+  taken: number
+}
+
+export interface DailyReport {
+  day: string
+  totals: {
+    sales_count: number
+    /** مبيعات المنتجات من غير شحن العميل */
+    sales_total: number
+    returns_total: number
+    net_sales: number
+    /** الربح الفعلي (قبل المصروفات) */
+    profit: number
+    /** اللي اتحصّل كاش من العملاء في اليوم (بعد اللي اترد كاش) */
+    collected: number
+    supplier_payments: number
+    expenses: number
+    /** صافي الكاش = المحصّل − المدفوع للموردين − المصروفات */
+    net_cash: number
+  }
+  groups: DayGroup[]
+  expenses: DayExpense[]
+  /** في الشراكة: حساب كل شريك في اليوم (زي تقفيل الشهر: أول اليوم، نصيبه، خد كام، والباقي آخره) */
+  partners?: PartnerClosingRow[]
+}
+
+export interface DailyClosing extends DailyReport {
+  /** لو اليوم مقفول: التقرير ده المحفوظ وقت التقفيل */
+  closed: { closed_at: string; notes: string | null } | null
+  /** اليوم جه (النهارده أو قبل كده)؟ مينفعش تقفّل يوم لسه ما جاش */
+  can_close: boolean
+}
+
+export interface ClosedDay {
+  day: string
+  closed_at: string
+  notes: string | null
+  sales_total: number
+  net_cash: number
 }

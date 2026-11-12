@@ -29,7 +29,7 @@ export function collect(input: CollectInput): number[] {
     if (input.sale_id) {
       const sale = salesRepo.findById(input.sale_id)
       if (!sale) throw new AppError('SALE_NOT_FOUND')
-      assertSaleOpen(sale.id)
+      assertSaleOpen(sale.id, { day: false }) // التحصيل في يوم تاني على فاتورة يوم مقفول مسموح
       if (sale.remaining <= 0) throw new AppError('NOTHING_DUE')
       if (amount > sale.remaining + EPS) throw new AppError('PAYMENT_EXCEEDS_REMAINING')
       const id = repo.insert(sale.id, amount, date, notes)
@@ -80,7 +80,7 @@ export function useCredit(customerId: number, amount: number, date: string, only
       const part = round2(Math.min(left, debt.left, credit.left))
       if (part <= 0) continue
       // الرصيد ممكن يكون من فاتورة في شهر مقفول (عادي: الزيادة مش داخلة في أرقام الشهر)، بس الفاتورة اللي بتتدفع لازم تكون مفتوحة
-      assertSaleOpen(debt.id)
+      assertSaleOpen(debt.id, { day: false })
       const paymentId = repo.insert(debt.id, part, date, null, true)
       repo.insertRefund({ sale_id: credit.id, amount: part, date, kind: 'credit', payment_id: paymentId })
       ids.push(paymentId)

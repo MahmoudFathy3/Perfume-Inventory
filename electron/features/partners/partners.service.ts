@@ -7,6 +7,7 @@ import * as customers from '../customers/customers.repository'
 import { lifetimeProfit, summary as dashboardSummary } from '../dashboard/dashboard.service'
 import * as workspaces from '../workspaces/workspaces.repository'
 import { linkPartnerCustomers } from '../workspaces/workspaces.service'
+import * as closingRepo from './closing.repository'
 import * as repo from './partners.repository'
 
 /** الشراكة اللي شغالين عليها (حسابات الشركاء ملهاش معنى في المخزون الفعلي) */
@@ -29,9 +30,12 @@ export function ledger(): PartnerLedger {
   const storeAccounts = new Map(withWorkspace(PERSONAL_WORKSPACE_ID, () => customers.findAll()).map((c) => [c.id, c]))
   const profit = round2(lifetimeProfit())
   const totals = new Map(repo.totals(ws).map((t) => [t.partner_id, t]))
+  const unpaid = closingRepo.unpaidSaleTransfers(ws, '9999-12-31')
 
   const accounts = workspaces.findPartners(ws).map((partner) => {
     const t = totals.get(partner.id)!
+    const mine = unpaid.filter((u) => u.partner_id === partner.id)
+    const unpaidSum = (into: number) => round2(mine.filter((u) => u.into_ws === into).reduce((sum, u) => sum + u.remaining, 0))
     const profit_share = round2((profit * partner.share_percent) / 100)
     return {
       partner,
@@ -42,6 +46,7 @@ export function ledger(): PartnerLedger {
       profit_share,
       settled: round2(t.settled - t.pair_net),
       balance: round2(profit_share + t.sold + t.paid_out - t.settled),
+      unpaid_transfers: { owed_to: unpaidSum(1), owed_by: unpaidSum(0) },
       store_account: storeAccountOf(partner.customer_id, storeAccounts)
     }
   })
@@ -69,22 +74,39 @@ function storeAccountOf(customerId: number | null, accounts: Map<number, Custome
   return c ? { customer_id: c.id, sales_count: c.sales_count, total: c.total, paid: c.paid, remaining: c.remaining } : null
 }
 
-/** تسوية: الشراكة بتدفع للشريك (to_partner) أو الشريك بيدفع للشراكة (from_partner) */
-export function addPayment(input: PartnerPaymentInput): number {
-  const ws = currentPartnership()
-  if (!workspaces.findPartners(ws).some((p) => p.id === Number(input.partner_id))) throw new AppError('PARTNER_NOT_FOUND')
-  if (input.direction !== 'to_partner' && input.direction !== 'from_partner') throw new AppError('INVALID_TYPE')
-  const amount = positiveAmount(input.amount)
-  const date = input.payment_date || today()
-  assertOpen(date, [ws])
-  return repo.insertPayment({
-    workspace_id: ws,
-    partner_id: Number(input.partner_id),
-    amount: input.direction === 'to_partner' ? amount : -amount,
-    payment_date: date,
-    notes: input.notes?.trim() || null
-  })
-}
+/**
+ * تسوية: الشراكة بتدفع للشريك (to_partner) أو الشريك بيدفع للشراكة (from_partner).
+ * apply_to_transfers: المبلغ يروح الأول لتحويلات "بيع بسعر" اللي لسه ما اتدفعتش في نفس الاتجاه (الأقدم الأول) كدفعات تحويل،
+ * فتتعلّم مدفوعة ومحدش يدفعها تاني بعدين، والباقي تسوية عادية. بيرجّع رقم آخر دفعة.
+ */
+export const addPayment = (input: PartnerPaymentInput): number =>
+  getDb().transaction(() => {
+    const ws = currentPartnership()
+    const partnerId = Number(input.partner_id)
+    if (!workspaces.findPartners(ws).some((p) => p.id === partnerId)) throw new AppError('PARTNER_NOT_FOUND')
+    if (input.direction !== 'to_partner' && input.direction !== 'from_partner') throw new AppError('INVALID_TYPE')
+    let left = positiveAmount(input.amount)
+    const date = input.payment_date || today()
+    assertOpen(date, [ws])
+    const sign = input.direction === 'to_partner' ? 1 : -1
+    const notes = input.notes?.trim() || null
+    const pay = (amount: number, transferId: number | null = null) =>
+      repo.insertPayment({ workspace_id: ws, partner_id: partnerId, amount: sign * amount, payment_date: date, notes, transfer_id: transferId })
+
+    let id = 0
+    if (input.apply_to_transfers) {
+      // to_partner = تحويلات دخلت الشراكة منه (الشراكة عليها له)، from_partner = تحويلات خرجت له (هو عليه)
+      const transfers = closingRepo.unpaidSaleTransfers(ws, date).filter((t) => t.partner_id === partnerId && t.into_ws === (sign === 1 ? 1 : 0))
+      for (const t of transfers) {
+        if (left <= 0.005) break
+        const part = round2(Math.min(left, t.remaining))
+        id = pay(part, t.id)
+        left = round2(left - part)
+      }
+    }
+    if (left > 0.005) id = pay(left)
+    return id
+  })()
 
 /**
  * تسوية بين الشريكين: from دفع لـ to من جيبه. بتتسجل كإن from دفع للشراكة والشراكة دفعت لـ to
@@ -133,4 +155,4 @@ export function partnerSales({ from, to }: Partial<DashboardRange> = {}): Partne
 }
 
 // تقفيل الشهر في ملف لوحده (closing.service)
-export { closedMonths, closeMonth, monthlyClosing, reopenMonth } from './closing.service'
+export { closedMonths, closedPartnerDays, closeMonth, dayPartnerClosing, monthlyClosing, reopenMonth, settleDay, settleMonth } from './closing.service'
