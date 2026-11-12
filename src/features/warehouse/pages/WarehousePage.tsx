@@ -2,6 +2,7 @@ import { PackagePlus, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WarehouseItem, WarehouseItemInput, WarehouseShipment, WarehouseShipmentInput } from '@shared/types'
+import { ExportMenu } from '@/shared/components/data/ExportMenu'
 import { SearchBar } from '@/shared/components/data/SearchBar'
 import { Button, Modal, PageHeader, Segmented, StatCard } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
@@ -99,6 +100,7 @@ export default function WarehousePage() {
     <>
       <PageHeader title={label(active)}>
         {tab === 'items' && <SearchBar value={search} onChange={setSearch} />}
+        <ExportMenu target={{ dataset: 'warehouse', search: q }} />
         <Button icon={Truck} onClick={() => setShipping(true)}>{t('warehouse.newShipment')}</Button>
         <Button variant="primary" icon={PackagePlus} onClick={() => setEditing({ row: null })}>{t('warehouse.addItem')}</Button>
       </PageHeader>

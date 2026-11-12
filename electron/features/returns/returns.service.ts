@@ -2,6 +2,7 @@ import type { DateFilter, PageParams, ReturnInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { addToAverage, removeFromAverage } from '../../lib/cost'
 import { AppError, money, parseCondition, qty, round2, today } from '../../lib/errors'
+import { assertOpen, assertReturnOpen } from '../../lib/monthLock'
 import * as itemStock from '../items/stock.repository'
 import * as paymentsRepo from '../payments/payments.repository'
 import { findById as findSale, isPartnerTransferSale } from '../sales/sales.repository'
@@ -21,6 +22,8 @@ export function createReturn(input: ReturnInput): number {
   if (!Array.isArray(input.items) || input.items.length === 0) throw new AppError('NO_LINES')
   // فاتورة الشريك (من تحويل): القطع في الشراكة مش هنا، فالرجوع بيكون بتعديل التحويل
   if (type === 'sale' && isPartnerTransferSale(invoiceId)) throw new AppError('SALE_FROM_TRANSFER')
+  // المرتجع بيتسجل بتاريخه (ممكن يكون على فاتورة من شهر مقفول، والأثر بيبقى في شهر المرتجع)
+  assertOpen(input.return_date)
 
   return getDb().transaction(() => {
     const returnId = repo.insertHeader({
@@ -101,6 +104,7 @@ export function removeReturn({ id }: { id: number }): void {
   getDb().transaction(() => {
     const record = repo.findById(id)
     if (!record) throw new AppError('RETURN_NOT_FOUND')
+    assertReturnOpen(id)
     const invoiceId = (record.type === 'sale' ? record.sale_id : record.purchase_id)!
 
     for (const l of repo.findLineRows(id)) {

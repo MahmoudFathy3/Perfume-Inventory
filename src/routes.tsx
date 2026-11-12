@@ -30,7 +30,8 @@ export default function AppRoutes() {
         <Route path="customers/:id" element={<CustomerDetailsPage />} />
         <Route path="returns" element={<ReturnsPage />} />
         <Route path="transfers" element={<TransfersPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />        <Route path="partners" element={<PartnersPage />} />
+        <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="partners" element={<PartnersPage />} />
         <Route path="workspaces" element={<WorkspacesPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

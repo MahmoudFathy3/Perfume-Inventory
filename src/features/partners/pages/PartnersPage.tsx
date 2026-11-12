@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeftRight } from 'lucide-react'
+import { ArrowLeftRight, CalendarCheck } from 'lucide-react'
 import type { PartnerAccount, PartnerPayment, PartnerPaymentInput, PartnerTransferInput } from '@shared/types'
 import { Button, EmptyState, Modal, PageHeader, StatCard } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
@@ -14,6 +14,8 @@ import { useWorkspaces } from '../../workspaces'
 import { partnersApi } from '../api/partners.api'
 import { PartnerAccountsTable } from '../components/PartnerAccountsTable'
 import { PartnerSalesTable } from '../components/PartnerSalesTable'
+import { ClosedMonthsTable } from '../components/ClosedMonthsTable'
+import { MonthlyClosingModal } from '../components/MonthlyClosingModal'
 import { PartnerStatementModal } from '../components/PartnerStatementModal'
 import { PaymentForm } from '../components/PaymentForm'
 import { PartnerTransferForm } from '../components/PartnerTransferForm'
@@ -46,6 +48,13 @@ function Accounts() {
   const [settling, setSettling] = useState<PartnerAccount | null>(null)
   const [details, setDetails] = useState<PartnerAccount | null>(null)
   const [transferring, setTransferring] = useState(false)
+  const [closing, setClosing] = useState<{ month?: string } | null>(null) // month = شهر مقفول اتفتح من الجدول
+  const closedMonths = useQuery(() => partnersApi.closedMonths(), [])
+  const closedDays = useQuery(() => partnersApi.closedDays(), [])
+  const refreshClosings = () => {
+    closedMonths.reload()
+    closedDays.reload()
+  }
   const [range, setRange] = useState<DateRange>({ from: '', to: '' })
   const sales = useQuery(() => partnersApi.sales({ from: range.from || null, to: range.to || null }), [range.from, range.to])
   const { reload } = ledger
@@ -87,6 +96,7 @@ function Accounts() {
   return (
     <>
       <PageHeader title={`${t('partners.title')} — ${label(active)}`}>
+        {data && <Button icon={CalendarCheck} onClick={() => setClosing({})}>{t('partners.closing.button')}</Button>}
         {(data?.accounts.length ?? 0) >= 2 && (
           <Button icon={ArrowLeftRight} onClick={() => setTransferring(true)}>{t('partners.transferTitle')}</Button>
         )}
@@ -105,6 +115,14 @@ function Accounts() {
           <DateRangeFilter range={range} onChange={setRange} />
           <div className="mt-3">{sales.data && <PartnerSalesTable rows={sales.data} />}</div>
 
+          <h2 className="mb-1 mt-6">{t('partners.closing.closedTitle')}</h2>
+          <p className="mb-3 text-sm text-slate-500">{t('partners.closing.closedTitleNote')}</p>
+          {closedMonths.data && <ClosedMonthsTable months={closedMonths.data} onOpen={(month) => setClosing({ month })} />}
+
+          <h2 className="mb-1 mt-6">{t('partners.closing.day.closedTitle')}</h2>
+          <p className="mb-3 text-sm text-slate-500">{t('partners.closing.day.closedTitleNote')}</p>
+          {closedDays.data && <ClosedMonthsTable months={closedDays.data} onOpen={(day) => setClosing({ month: day })} emptyText={t('partners.closing.day.noClosed')} />}
+
           <h2 className="mb-3 mt-6">{t('partners.payments')}</h2>
           <PaymentsTable rows={data.payments} onDelete={ask} />
         </>
@@ -114,6 +132,7 @@ function Accounts() {
           <PaymentForm account={settling} onSubmit={pay} onCancel={() => setSettling(null)} />
         </Modal>
       )}
+      {closing && <MonthlyClosingModal initialMonth={closing.month} onChanged={refreshClosings} onClose={() => setClosing(null)} />}
       {details && <PartnerStatementModal partnerId={details.partner.id} name={details.partner.name} onClose={() => setDetails(null)} />}
       {transferring && data && (
         <Modal title={t('partners.transferTitle')} onClose={() => setTransferring(false)}>
