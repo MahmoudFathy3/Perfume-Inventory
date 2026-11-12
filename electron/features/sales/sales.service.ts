@@ -1,6 +1,7 @@
 import type { DateFilter, PageParams, SaleInput } from '@shared/types'
 import { getDb } from '../../database/connection'
 import { AppError, money, round2 } from '../../lib/errors'
+import { assertOpen, assertSaleOpen } from '../../lib/monthLock'
 import { activeWorkspaceId } from '../../lib/workspace'
 import { removeSaleTransfers, restoreSaleTransferPayments, saveSaleTransferPayments, sourcePrice, transferForSale } from '../transfers/transfers.sales'
 import * as payments from '../payments/payments.repository'
@@ -61,6 +62,7 @@ function assertCustomerForDebt(c: CleanSale, total: number, paid: number): void 
  */
 export function createSale(input: SaleInput): number {
   const c = cleanSale(input)
+  assertOpen(c.date)
   return getDb().transaction(() => {
     const id = repo.insertHeader(header(c, 0))
     const total = invoiceTotal(c, sellLines(id, bringForeignLines(id, c), false))
@@ -95,6 +97,8 @@ export function updateSale({ id, ...input }: SaleInput & { id: number }): void {
   getDb().transaction(() => {
     const old = repo.findById(id)
     if (!old) throw new AppError('SALE_NOT_FOUND')
+    assertSaleOpen(id)
+    assertOpen(c.date)
     if (repo.isPartnerTransferSale(id)) throw new AppError('SALE_FROM_TRANSFER')
     if (repo.returnsCount(id) > 0) throw new AppError('HAS_RETURNS')
 
@@ -123,6 +127,7 @@ export function updateSale({ id, ...input }: SaleInput & { id: number }): void {
 export function removeSale({ id }: { id: number }): void {
   getDb().transaction(() => {
     if (!repo.findById(id)) throw new AppError('SALE_NOT_FOUND')
+    assertSaleOpen(id)
     if (repo.isPartnerTransferSale(id)) throw new AppError('SALE_FROM_TRANSFER')
     if (repo.returnsCount(id) > 0) throw new AppError('HAS_RETURNS')
     restoreLines(id)

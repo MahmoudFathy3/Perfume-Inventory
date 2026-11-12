@@ -56,7 +56,7 @@ const ITEM_NAMES = `(SELECT group_concat(i.name_ar || ' ' || COALESCE(i.name_en,
    FROM transfer_items ti JOIN items i ON i.id = ti.from_item_id WHERE ti.transfer_id = t.id)`
 
 /** التحويلات اللي المخزن النشط طرف فيها (طالع منه أو داخل عليه) بعد الفلتر، من غير ترتيب */
-function filtered(filter: TransfersFilter) {
+export function filtered(filter: TransfersFilter) {
   const { where, params } = searchClause(['partner_name', 'notes', 'item_names'], filter.search, 'AND')
   const conditions = [
     filter.kind ? 'AND kind = @kind' : '',

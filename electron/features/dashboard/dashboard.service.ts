@@ -20,7 +20,14 @@ const ALL_TIME: repo.Range = { from: null, to: null }
  * صافي ربح المخزن النشط من أول يوم = الربح الفعلي − المصروفات اللي بتتخصم من الربح
  * (بيستخدمه ملخص المخازن وحسابات الشركاء: نصيب كل شريك من الصافي)
  */
-export const lifetimeProfit = (): number => profitOf(ALL_TIME, repo.sales(ALL_TIME).shop_shipping) - repo.expenses(ALL_TIME).deducted
+export const lifetimeProfit = (): number => profitSummary(ALL_TIME).net
+
+/** ربح فترة للمخزن النشط: الفعلي، والمصروفات اللي بتتخصم، والصافي (من غير باقي أرقام الرئيسية) */
+export function profitSummary(range: repo.Range): { profit: number; expenses: number; net: number } {
+  const profit = profitOf(range, repo.sales(range).shop_shipping)
+  const expenses = repo.expenses(range).deducted
+  return { profit, expenses, net: profit - expenses }
+}
 
 /** ملخص كل المخازن المفتوحة (الفعلي والشراكات، من غير المخازن الخارجية): بيتحسب لكل واحد على بياناته هو بس */
 export function overview(): WorkspaceOverview[] {

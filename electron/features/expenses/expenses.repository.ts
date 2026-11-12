@@ -13,9 +13,9 @@ export interface ExpenseRow {
   notes: string | null
 }
 
-type ListOptions = { search?: string; category?: string } & DateFilter
+export type ListOptions = { search?: string; category?: string } & DateFilter
 
-function filterClause(opts: ListOptions) {
+export function filterClause(opts: ListOptions) {
   const { where, params } = scoped('workspace_id', searchClause(['category', 'notes'], opts.search))
   const dates = dateClause('expense_date', opts)
   const byCategory = opts.category ? 'AND norm(category) = norm(@category)' : ''
