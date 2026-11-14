@@ -16,6 +16,7 @@ import * as payments from './payments/payments.ipc'
 import * as printing from './printing/printing.ipc'
 import * as purchases from './purchases/purchases.ipc'
 import * as returns from './returns/returns.ipc'
+import * as saleOrders from './saleOrders/saleOrders.ipc'
 import * as sales from './sales/sales.ipc'
 import * as settings from './settings/settings.ipc'
 import * as share from './share/share.ipc'
@@ -30,6 +31,6 @@ export function registerAll(ctx: IpcContext): void {
   const handle = createHandle(ctx.ipcMain, (channel) => {
     if (!channel.startsWith('auth:') && channel !== 'app:name' && ctx.session.state() !== 'unlocked') throw new AppError('LOCKED')
   })
-  const features = [auth, workspaces, categories, items, purchases, sales, freeInvoices, customers, payments, returns, transfers, expenses, warehouse, partners, dailyClosing, dashboard, settings, backup, exporting, printing, share, clipboard]
+  const features = [auth, workspaces, categories, items, purchases, sales, saleOrders, freeInvoices, customers, payments, returns, transfers, expenses, warehouse, partners, dailyClosing, dashboard, settings, backup, exporting, printing, share, clipboard]
   for (const feature of features) feature.register(handle, ctx)
 }

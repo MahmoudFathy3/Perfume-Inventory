@@ -11,7 +11,7 @@ export function useItems(search = '') {
 }
 
 /** صفحة المنتجات (الجدول): الـ pagination من الـ backend */
-export function useItemsPage(search = '') {
+export function useItemsPage(search = '', reserved = false) {
   const q = useDebounce(search)
-  return usePagedQuery((page) => itemsApi.page({ search: q, ...page }), [q])
+  return usePagedQuery((page) => itemsApi.page({ search: q, reserved, ...page }), [q, reserved])
 }

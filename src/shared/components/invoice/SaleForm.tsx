@@ -26,7 +26,12 @@ interface SaleFormProps {
   storeLabel?: string
   /** فاتورة موجودة (وضع التعديل) */
   initial?: SaleWithLines | null
-  onSubmit: (payload: SaleInput) => Promise<unknown>
+  /**
+   * فواتير تحت التجهيز: choose = فاتورة جديدة وفيها اختيار "تحت التجهيز"، order = تعديل طلب تحت التجهيز.
+   * تحت التجهيز المدفوع بيبقى العربون (الافتراضي مفيش)، ومفيش خصم من رصيد العميل.
+   */
+  orderMode?: 'choose' | 'order'
+  onSubmit: (payload: SaleInput, pending: boolean) => Promise<unknown>
   onCancel: () => void
 }
 
@@ -34,16 +39,19 @@ interface SaleFormProps {
  * فاتورة بيع: الشريك اللي باع (في الشراكة) + العميل (بالبحث) + قطاعي/جملة + سطور المنتجات + الشحن (على العميل أو المحل) + المدفوع.
  * المدفوع بيتحدد وقت الإنشاء بس (الافتراضي كله)، والتحصيل بعد كده من صفحة العملاء.
  */
-export function SaleForm({ items, customers, partners = [], foreign = [], storeLabel = '', onCreateCustomer, initial, onSubmit, onCancel }: SaleFormProps) {
+export function SaleForm({ items, customers, partners = [], foreign = [], storeLabel = '', onCreateCustomer, initial, orderMode, onSubmit, onCancel }: SaleFormProps) {
   const { t, i18n } = useTranslation()
-  const editing = !!initial
+  const [pending, setPending] = useState(orderMode === 'order')
+  // تعديل فاتورة بيع (مش طلب): المدفوع مبيتعدّلش من هنا
+  const editing = !!initial && !pending
   const [customerId, setCustomerId] = useState<number | ''>(initial?.customer_id ?? '')
   const [partnerId, setPartnerId] = useState(initial?.partner_id ? String(initial.partner_id) : '')
   const [header, setHeader] = useState({
     date: initial?.sale_date ?? todayString(),
     shipping: initial?.shipping_cost ? String(initial.shipping_cost) : '',
     notes: initial?.notes ?? '',
-    paid: ''
+    // الطلب: العربون اللي اتسجل
+    paid: orderMode === 'order' && initial?.paid ? String(initial.paid) : ''
   })
   const [priceType, setPriceType] = useState<PriceType>(initial?.price_type ?? 'retail')
   const [payer, setPayer] = useState<ShippingPayer>(initial?.shipping_payer ?? 'customer')
@@ -69,9 +77,9 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
   // وقت الإنشاء: المدفوع اللي كاتبه (أو الفاتورة كلها). وقت التعديل: اللي اتحصّل فعلًا.
   // رصيد العميل بيتخصم من الفاتورة الجديدة (الافتراضي مفعّل)، والكاش الافتراضي = اللي فاضل
   const [useCredit, setUseCredit] = useState(true)
-  const credit = !initial && customerId ? (customers.find((c) => c.id === customerId)?.credit ?? 0) : 0
+  const credit = !initial && !pending && customerId ? (customers.find((c) => c.id === customerId)?.credit ?? 0) : 0
   const creditUsed = useCredit ? Math.min(credit, invoiceTotal) : 0
-  const paidNow = initial ? grossPaid(initial) : creditUsed + (header.paid === '' ? invoiceTotal - creditUsed : Number(header.paid) || 0)
+  const paidNow = pending ? Number(header.paid) || 0 : initial ? grossPaid(initial) : creditUsed + (header.paid === '' ? invoiceTotal - creditUsed : Number(header.paid) || 0)
 
   function changePriceType(type: PriceType) {
     setPriceType(type)
@@ -87,13 +95,22 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
       shipping_payer: payer,
       shipping_cost: header.shipping,
       notes: header.notes,
-      ...(editing ? {} : { paid: header.paid, use_credit: credit > 0 && useCredit }),
+      ...(pending ? { paid: header.paid } : editing ? {} : { paid: header.paid, use_credit: credit > 0 && useCredit }),
       items: toSaleLines(state.lines)
-    })
+    }, pending)
   )
 
   return (
     <form onSubmit={submit}>
+      {orderMode === 'choose' && (
+        <label className={clsx('mb-3.5 flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-sm', pending ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600')}>
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-600" checked={pending} onChange={(e) => setPending(e.target.checked)} />
+          <span>
+            <strong className="block">{t('orders.pendingToggle')}</strong>
+            {t('orders.pendingHint')}
+          </span>
+        </label>
+      )}
       {partners.length > 0 && (
         <div className="mb-3.5 flex flex-col gap-1.5">
           <span className="text-[13px] font-semibold text-slate-500">{t('sales.soldBy')}</span>
@@ -144,7 +161,11 @@ export function SaleForm({ items, customers, partners = [], foreign = [], storeL
         <Field label={t('common.notes')}>
           <Input value={header.notes} onChange={(e) => set('notes')(e.target.value)} />
         </Field>
-        {initial ? (
+        {pending ? (
+          <Field label={t('orders.deposit')}>
+            <NumberInput value={header.paid} placeholder={t('orders.noDeposit')} onChange={(e) => set('paid')(e.target.value)} />
+          </Field>
+        ) : initial ? (
           <Field label={t('invoice.paid')}>
             <Input readOnly value={formatMoney(grossPaid(initial), i18n.language)} className="bg-slate-50" />
           </Field>

@@ -468,6 +468,9 @@ export interface Item {
   damaged_purchase_price: number
   damaged_selling_price: number
   damaged_wholesale_price: number
+  /** قطع محجوزة في فواتير تحت التجهيز (لسه ما اتخصمتش): المتاح للبيع = الكمية − المحجوز */
+  new_reserved: number
+  damaged_reserved: number
   /** لو المنتج اتأرشف (اتحذف وله حركات) بيبقى فيه تاريخ */
   deleted_at: string | null
 }
@@ -1169,4 +1172,51 @@ export interface ClosedDay {
   notes: string | null
   sales_total: number
   net_cash: number
+}
+
+// ---------- فواتير تحت التجهيز (طلبات لسه ما اتباعتش) ----------
+/** طلب بيع لسه ما اتباعش: مش بيتخصم من المخزون ولا داخل في المبيعات، والقطع بتظهر محجوزة */
+export interface SaleOrder {
+  id: number
+  order_date: string
+  customer_id: number | null
+  customer_name: string | null
+  partner_id: number | null
+  partner_name: string | null
+  price_type: PriceType
+  shipping_payer: ShippingPayer
+  shipping_cost: number
+  total: number
+  /** العربون اللي اتدفع (بيتحسب دفعة من الفاتورة لما تتباع) */
+  deposit: number
+  notes: string | null
+  lines_count: number
+  pieces: number
+}
+
+export interface SaleOrderLine {
+  id: number
+  /** المنتج في المخزن اللي القطع فيه (مخزن الطلب أو المخزن التاني) */
+  item_id: number
+  name_ar: string
+  name_en: string | null
+  category_id: number
+  condition: Condition
+  quantity: number
+  selling_price: number
+  source_workspace_id: number | null
+  transfer_price: number | null
+}
+
+export interface SaleOrderWithLines extends SaleOrder {
+  items: SaleOrderLine[]
+}
+
+/** "اتباعت": الطلب بيتحول لفاتورة بيع عادية (القطع بتتخصم) والطلب بيتمسح */
+export interface ConfirmOrderInput {
+  id: number
+  /** تاريخ البيع (الافتراضي النهارده) */
+  sale_date?: string
+  /** المدفوع دلوقتي زيادة على العربون (الافتراضي الباقي كله) */
+  paid?: NumLike
 }

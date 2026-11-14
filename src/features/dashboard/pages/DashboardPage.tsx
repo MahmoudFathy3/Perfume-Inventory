@@ -11,6 +11,7 @@ import { formatMoney, formatNumber } from '@/shared/utils/format'
 import { CapitalCard } from '../components/CapitalCard'
 import { CopyStockButtons } from '../components/CopyStockButtons'
 import { PartnersShare } from '../components/PartnersShare'
+import { ReservedCard } from '../components/ReservedCard'
 import { TransfersMoney } from '../components/TransfersMoney'
 import { WorkspacesOverview } from '../components/WorkspacesOverview'
 import { ProfitChart } from '../components/charts/ProfitChart'
@@ -55,6 +56,7 @@ function StoreDashboard() {
       <PageHeader title={<>{t('dashboard.title')} <small className="font-normal text-slate-500">— {label(active)}</small></>}>
         <Button icon={MessageCircle} onClick={() => void openWhatsApp()} className="!border-green-200 !text-green-700 hover:!bg-green-50">{t('share.whatsapp')}</Button>
         <StockCountButton />
+        <StockCountButton only="damaged" />
         <CopyStockButtons />
       </PageHeader>
 
@@ -81,6 +83,8 @@ function StoreDashboard() {
             <StatCard label={t('dashboard.categoriesCount')} value={num(s.counts.categories)} sub={current} />
             <StatCard label={t('dashboard.customersCount')} value={num(s.counts.customers)} sub={current} />
           </div>
+
+          <ReservedCard />
 
           <TransfersMoney />
 

@@ -6,10 +6,12 @@ import type { Item } from '@shared/types'
 import { ExportMenu } from '@/shared/components/data/ExportMenu'
 import { Pagination } from '@/shared/components/data/Pagination'
 import { SearchBar } from '@/shared/components/data/SearchBar'
-import { Button, Modal, PageHeader } from '@/shared/components/ui'
+import { Button, Modal, PageHeader, Segmented } from '@/shared/components/ui'
 import { useConfirmDelete } from '@/shared/hooks/useConfirmDelete'
+import { useQuery } from '@/shared/hooks/useQuery'
 import { useToast } from '@/shared/toast/ToastProvider'
 import { useCategories } from '../../categories'
+import { ordersApi } from '../../sales/api/orders.api'
 import { itemsApi } from '../api/items.api'
 import { CopyPriceListButton } from '../components/CopyPriceListButton'
 import { StockCountButton } from '../components/StockCountButton'
@@ -23,7 +25,10 @@ export default function ItemsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<{ item: Item | null } | null>(null)
-  const pagination = useItemsPage(search)
+  // فلتر: كل المنتجات، أو اللي ليها قطع محجوزة في فواتير تحت التجهيز بس
+  const [filter, setFilter] = useState<'all' | 'reserved'>('all')
+  const pagination = useItemsPage(search, filter === 'reserved')
+  const reserved = useQuery(() => ordersApi.reserved(), [])
   const { reload } = pagination
   const { categories } = useCategories('')
 
@@ -57,10 +62,24 @@ export default function ItemsPage() {
       <PageHeader title={t('items.title')}>
         <SearchBar value={search} onChange={setSearch} />
         <StockCountButton />
+        <StockCountButton only="damaged" />
         <CopyPriceListButton />
         <ExportMenu target={{ dataset: 'items', search }} />
         <Button variant="primary" icon={Plus} onClick={() => setEditing({ item: null })}>{t('items.add')}</Button>
       </PageHeader>
+
+      {(reserved.data?.items ?? 0) > 0 && (
+        <div className="mb-3.5">
+          <Segmented
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: t('items.filterAll') },
+              { value: 'reserved', label: t('items.filterReserved', { count: reserved.data!.items }) }
+            ]}
+          />
+        </div>
+      )}
 
       <ItemsTable items={pagination.pageRows} onEdit={(item) => setEditing({ item })} onDelete={ask} onDetails={(item) => navigate(`/items/${item.id}`)} />
       <Pagination {...pagination} />

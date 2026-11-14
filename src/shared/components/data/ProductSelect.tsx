@@ -96,7 +96,9 @@ export function ProductSelect({ items, value, onChange, allowCreate = false, tag
               {tag && <span className="rounded-md bg-amber-100 px-1.5 text-[11px] font-bold text-amber-800">{tag}</span>}
             </span>
             <small className="opacity-75">
-              {i.category_name} · {t('sales.available')}: {t('condition.new')} {i.new_quantity} / {t('condition.damaged')} {i.damaged_quantity}
+              {/* المتاح = اللي في المخزن − المحجوز في فواتير تحت التجهيز */}
+              {i.category_name} · {t('sales.available')}: {t('condition.new')} {i.new_quantity - (i.new_reserved ?? 0)} / {t('condition.damaged')} {i.damaged_quantity - (i.damaged_reserved ?? 0)}
+              {(i.new_reserved ?? 0) + (i.damaged_reserved ?? 0) > 0 && <span className="text-amber-600"> · {t('items.reservedShort', { count: (i.new_reserved ?? 0) + (i.damaged_reserved ?? 0) })}</span>}
             </small>
           </div>
         )

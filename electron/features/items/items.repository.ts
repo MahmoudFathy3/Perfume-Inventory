@@ -22,7 +22,10 @@ const selectItems = () => `
          COALESCE(d.quantity, 0) AS damaged_quantity,
          COALESCE(d.purchase_price, 0) AS damaged_purchase_price,
          COALESCE(d.selling_price, 0) AS damaged_selling_price,
-         COALESCE(d.wholesale_price, 0) AS damaged_wholesale_price
+         COALESCE(d.wholesale_price, 0) AS damaged_wholesale_price,
+         -- محجوز في فواتير تحت التجهيز (لسه ما اتخصمش)
+         COALESCE((SELECT SUM(quantity) FROM sale_order_items WHERE item_id = i.id AND condition = 'new'), 0) AS new_reserved,
+         COALESCE((SELECT SUM(quantity) FROM sale_order_items WHERE item_id = i.id AND condition = 'damaged'), 0) AS damaged_reserved
   FROM items i
   JOIN categories c ON c.id = i.category_id
   LEFT JOIN item_stock n ON n.item_id = i.id AND n.condition = 'new'
@@ -31,12 +34,14 @@ const selectItems = () => `
 
 // ---------- المنتجات ----------
 
-type ListOptions = { search?: string; category_id?: number }
+/** reserved = المنتجات اللي ليها قطع محجوزة في فواتير تحت التجهيز بس */
+type ListOptions = { search?: string; category_id?: number; reserved?: boolean }
 
 function listQuery(opts: ListOptions) {
   const { where, params } = searchClause(['i.search_text', 'c.name'], opts.search, 'AND')
   const byCategory = opts.category_id ? 'AND i.category_id = @category_id' : ''
-  const sql = `${selectItems()} AND i.deleted_at IS NULL ${byCategory} ${where} ORDER BY i.name_ar`
+  const reserved = opts.reserved ? 'AND EXISTS (SELECT 1 FROM sale_order_items WHERE item_id = i.id)' : ''
+  const sql = `${selectItems()} AND i.deleted_at IS NULL ${byCategory} ${reserved} ${where} ORDER BY i.name_ar`
   return { sql, params: { ...params, category_id: opts.category_id } }
 }
 

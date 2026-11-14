@@ -17,6 +17,7 @@ import { purchasesApi } from '../../purchases'
 import { returnsApi } from '../../returns'
 import { salesApi } from '../../sales'
 import { MovementsTable } from '../components/MovementsTable'
+import { ReservedOrders } from '../components/ReservedOrders'
 import { StockSummary } from '../components/StockSummary'
 import { useItemDetails } from '../hooks/useItemDetails'
 
@@ -86,6 +87,8 @@ export default function ItemDetailsPage() {
         <StockSummary condition="new" item={item} />
         <StockSummary condition="damaged" item={item} />
       </div>
+
+      <ReservedOrders itemId={itemId} />
 
       {/* إجمالي فلوس القطع اللي في المخزن من المنتج (جديد + تالف) */}
       <div className="mb-3.5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5 xl:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">

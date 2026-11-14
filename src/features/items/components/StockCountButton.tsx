@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ClipboardList, Copy } from 'lucide-react'
+import { ClipboardList, ClipboardX, Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { invoke } from '@/shared/api/ipc'
 import { Button, Modal } from '@/shared/components/ui'
@@ -8,8 +8,11 @@ import { useWorkspaces } from '@/features/workspaces'
 import { itemsApi } from '../api/items.api'
 import { buildStockCount } from '../utils/stockCount'
 
-/** جرد المخزن الحالي: كل منتج وعدده الجديد (سليم) والتالف (ديفوه)، في نافذة مع زرار نسخ */
-export function StockCountButton() {
+/**
+ * جرد المخزن الحالي: كل منتج وعدده الجديد (سليم) والتالف (ديفوه)، في نافذة مع زرار نسخ.
+ * only='damaged' = جرد التالف بس.
+ */
+export function StockCountButton({ only }: { only?: 'damaged' } = {}) {
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const { active, label } = useWorkspaces()
@@ -19,10 +22,11 @@ export function StockCountButton() {
     try {
       const items = await itemsApi.list({}) // كل المنتجات (مش اللي في الصفحة بس)
       const result = buildStockCount(items, i18n.language, {
-        title: t('items.stockCount.heading', { name: label(active) }),
-        labels: { new: t('items.stockCount.new'), damaged: t('items.stockCount.damaged') }
+        title: t(only ? 'items.stockCount.damagedHeading' : 'items.stockCount.heading', { name: label(active) }),
+        labels: { new: t('items.stockCount.new'), damaged: t('items.stockCount.damaged') },
+        only
       })
-      if (!result) return toast.info(t('items.stockCount.empty'))
+      if (!result) return toast.info(t(only ? 'items.stockCount.damagedEmpty' : 'items.stockCount.empty'))
       setText(result)
     } catch (e) {
       toast.fail(e)
@@ -41,9 +45,9 @@ export function StockCountButton() {
 
   return (
     <>
-      <Button icon={ClipboardList} onClick={() => void open()}>{t('items.stockCount.button')}</Button>
+      <Button icon={only ? ClipboardX : ClipboardList} onClick={() => void open()}>{t(only ? 'items.stockCount.damagedButton' : 'items.stockCount.button')}</Button>
       {text && (
-        <Modal title={t('items.stockCount.title')} onClose={() => setText(null)}>
+        <Modal title={t(only ? 'items.stockCount.damagedTitle' : 'items.stockCount.title')} onClose={() => setText(null)}>
           <pre dir="auto" className="mb-4 max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-4 font-sans text-sm leading-7 text-slate-800">{text}</pre>
           <div className="flex justify-end gap-2">
             <Button onClick={() => setText(null)}>{t('common.close')}</Button>

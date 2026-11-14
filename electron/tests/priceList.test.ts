@@ -6,7 +6,8 @@ import { buildPriceList, formatListPrice } from '../../src/features/items/utils/
 const item = (name_ar: string, category_name: string, price: number, extra: Partial<Item> = {}): Item => ({
   id: 1, name_ar, name_en: null, category_id: 1, category_name,
   new_quantity: 5, new_purchase_price: 10, new_selling_price: price, new_wholesale_price: 1,
-  damaged_quantity: 0, damaged_purchase_price: 0, damaged_selling_price: 7, damaged_wholesale_price: 0, deleted_at: null, ...extra
+  damaged_quantity: 0, damaged_purchase_price: 0, damaged_selling_price: 7, damaged_wholesale_price: 0,
+  new_reserved: 0, damaged_reserved: 0, deleted_at: null, ...extra
 })
 
 test('قايمة المنتجات: الصنف وتحته منتجاته وجنب كل منتج سعر القطعة بس', () => {

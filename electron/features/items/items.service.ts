@@ -42,7 +42,7 @@ function applyStock(itemId: number, stock: CleanStock): void {
 }
 
 export const listItems = (p: { search?: string; category_id?: number }) => repo.findAll(p)
-export const pageItems = (p: { search?: string; category_id?: number } & PageParams) => repo.findPage(p, p)
+export const pageItems = (p: { search?: string; category_id?: number; reserved?: boolean } & PageParams) => repo.findPage(p, p)
 export const getItem = ({ id }: { id: number }) => repo.findById(id)
 
 export const createItem = (input: ItemInput): number =>

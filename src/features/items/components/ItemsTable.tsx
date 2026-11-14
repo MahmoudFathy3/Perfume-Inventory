@@ -13,10 +13,17 @@ function StockCell({ item, condition }: { item: Item; condition: Condition }) {
   const purchase = item[`${condition}_purchase_price`]
   const selling = item[`${condition}_selling_price`]
   const wholesale = item[`${condition}_wholesale_price`]
+  // محجوز في فواتير تحت التجهيز (لسه في المخزن بس مش متاح للبيع)
+  const reserved = item[`${condition}_reserved`] ?? 0
   if (!quantity && !selling && !wholesale) return <span className="text-slate-400">0</span>
   return (
     <>
       <strong className="block text-base">{formatNumber(quantity, lang)}</strong>
+      {reserved > 0 && (
+        <small className="block text-xs font-semibold text-amber-700">
+          {t('items.reserved', { reserved: formatNumber(reserved, lang), available: formatNumber(Math.max(0, quantity - reserved), lang) })}
+        </small>
+      )}
       <small className="mt-0.5 flex flex-wrap gap-x-2.5 text-xs text-slate-500">
         <span>{t('items.buyShort')} {formatMoney(purchase, lang)}</span>
         <span>{t('items.sellShort')} {formatMoney(selling, lang)}</span>

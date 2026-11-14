@@ -9,6 +9,8 @@ export interface StockCountOptions {
   title?: string
   /** الكلمة اللي بعد اسم المنتج للجديد والتالف (مثلًا "سليم" و"ديفوه") */
   labels: { new: string; damaged: string }
+  /** 'damaged' = جرد التالف بس (من غير السليم) */
+  only?: 'damaged'
 }
 
 /**
@@ -23,8 +25,8 @@ export interface StockCountOptions {
  * سطر للجديد وسطر للتالف لو موجود، والمنتج اللي مفيش منه خالص مبيتكتبش.
  * الأصناف والمنتجات بالترتيب الأبجدي.
  */
-export function buildStockCount(source: Item[], lang: string, { title, labels }: StockCountOptions): string {
-  const items = source.filter((i) => i.new_quantity > 0 || i.damaged_quantity > 0)
+export function buildStockCount(source: Item[], lang: string, { title, labels, only }: StockCountOptions): string {
+  const items = source.filter((i) => (only !== 'damaged' && i.new_quantity > 0) || i.damaged_quantity > 0)
   if (items.length === 0) return ''
   const collator = new Intl.Collator(lang === 'ar' ? 'ar' : 'en')
 
@@ -39,7 +41,7 @@ export function buildStockCount(source: Item[], lang: string, { title, labels }:
         .flatMap((p) => {
           const name = itemName(p, lang)
           const out: string[] = []
-          if (p.new_quantity > 0) out.push(`${p.new_quantity} ${name} ${labels.new}`)
+          if (only !== 'damaged' && p.new_quantity > 0) out.push(`${p.new_quantity} ${name} ${labels.new}`)
           if (p.damaged_quantity > 0) out.push(`${p.damaged_quantity} ${name} ${labels.damaged}`)
           return out
         })

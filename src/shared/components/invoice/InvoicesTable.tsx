@@ -1,12 +1,10 @@
-import { Eye, HandCoins, Pencil, Trash2, UserRound } from 'lucide-react'
+import { Eye, HandCoins, PackageOpen, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { customerLabel } from '../../utils/partyName'
 import type { Purchase, Sale } from '@shared/types'
-import { usePrint } from '../../print/PrintProvider'
 import { formatDate, formatMoney } from '../../utils/format'
 import { Badge, Button, DataTable, PaymentStatusBadge, PriceTypeBadge, RowActions } from '../ui'
 import type { Column } from '../ui'
-import { CustomerNameLabel } from './CustomerNameLabel'
 import { grossPaid, SalePaidCell } from './SalePaidCell'
 
 type Row = Purchase | Sale
@@ -22,13 +20,14 @@ interface InvoicesTableProps<T extends Row> {
   showPartner?: boolean
   /** فواتير الشراء: دفعات المورد (الدفع والحذف) */
   onPayments?: (row: T) => void
+  /** فواتير البيع: رجوعها لتحت التجهيز */
+  onToPending?: (row: T) => void
 }
 
 /** جدول مشترك لقايمة فواتير الشراء والبيع (عرض / تعديل / حذف) */
-export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDelete, showPartner = false, onPayments }: InvoicesTableProps<T>) {
+export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDelete, showPartner = false, onPayments, onToPending }: InvoicesTableProps<T>) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
-  const { print } = usePrint()
   const purchase = kind === 'purchase'
   const money = (v: number) => formatMoney(v, lang)
 
@@ -92,8 +91,8 @@ export function InvoicesTable<T extends Row>({ kind, rows, onView, onEdit, onDel
           {!isSale(r) && onPayments && r.paid_by_partner !== 1 && (
             <Button size="sm" icon={HandCoins} onClick={() => onPayments(r)}>{t('purchases.payments')}</Button>
           )}
-          {isSale(r) && r.customer_name && (
-            <Button size="sm" icon={UserRound} title={t('invoice.printName')} onClick={() => print(<CustomerNameLabel name={r.customer_name!} />)}>{t('invoice.printNameShort')}</Button>
+          {isSale(r) && onToPending && (
+            <Button size="sm" icon={PackageOpen} title={t('orders.toPendingHint')} onClick={() => onToPending(r)}>{t('orders.toPending')}</Button>
           )}
           <Button size="sm" icon={Pencil} onClick={() => onEdit(r)}>{t('common.edit')}</Button>
           <Button size="sm" variant="danger" icon={Trash2} onClick={() => onDelete(r)}>{t('common.delete')}</Button>

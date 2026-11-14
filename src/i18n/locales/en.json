@@ -140,7 +140,11 @@
     "expensesSub": "{{count}} expenses",
     "expensesDeductedSub": "{{amount}} of it is deducted from profit",
     "netProfit": "Net profit",
-    "netProfitSub": "Actual profit − expenses"
+    "netProfitSub": "Actual profit − expenses",
+    "reservedTitle": "Pieces reserved in orders being prepared (still in stock)",
+    "reservedPieces": "{{pieces}} pcs",
+    "reservedSub": "Worth {{value}} · {{items}} products · {{orders}} orders",
+    "reservedOpen": "View orders →"
   },
   "categories": {
     "title": "Categories",
@@ -177,7 +181,11 @@
       "damaged": "defective",
       "copy": "Copy stock count",
       "copied": "Stock count copied",
-      "empty": "No products in stock in this store"
+      "empty": "No products in stock in this store",
+      "damagedButton": "Damaged count",
+      "damagedTitle": "Damaged stock count",
+      "damagedHeading": "Damaged stock — {{name}}",
+      "damagedEmpty": "No damaged pieces in this store"
     },
     "copyNewRetail": "Good — retail",
     "copyNewWholesale": "Good — wholesale",
@@ -186,7 +194,12 @@
     "copyTitle": {
       "new": "Good products",
       "damaged": "Defective products"
-    }
+    },
+    "reserved": "Reserved {{reserved}} · available {{available}}",
+    "reservedShort": "{{count}} reserved",
+    "filterAll": "All products",
+    "filterReserved": "Reserved only ({{count}})",
+    "reservedOrdersTitle": "{{pieces}} pieces reserved in orders being prepared"
   },
   "purchases": {
     "title": "Purchases",
@@ -288,7 +301,6 @@
     "export": "Export a copy",
     "import": "Import a copy",
     "exportDone": "Backup exported successfully",
-    "confirmImport": "Current data will be replaced by the imported copy (a safety copy is saved automatically) and the app will restart. Continue?",
     "history": "Recent operations",
     "exportType": "Export",
     "importType": "Import",
@@ -310,7 +322,14 @@
     "foreignSecretHint": "If you don’t remember the password, enter the recovery key the old device showed you (XXXX-XXXX-...).",
     "foreignNoVault": "The vault file (same name as the backup, ending in .vault.json) isn’t next to the backup: you’ll be asked to pick it after entering the password.",
     "foreignKeepPassword": "This device’s data will be replaced by the backup (a safety copy is made first). This device’s password stays the same, and the app restarts.",
-    "foreignImport": "Open backup and replace"
+    "foreignImport": "Open backup and replace",
+    "importTitle": "Import a backup",
+    "importQuestion": "Are you sure you want to import a backup?",
+    "importReplace": "All current data will be replaced by the backup you pick.",
+    "importSafety": "A safety copy of the current data is made first (before-import in the data folder).",
+    "importRestart": "The app restarts after importing.",
+    "importForeignNote": "If the backup is from another device, you’ll be asked for that device’s old password.",
+    "importAction": "Yes, pick the file"
   },
   "errors": {
     "UNKNOWN": "Unexpected error",
@@ -400,7 +419,9 @@
     "INVALID_DATE": "Invalid date",
     "NOTHING_TO_SETTLE": "Nobody is owed or owes anything for this month",
     "DAY_NOT_SETTLED": "Settle the partners first: a partner is still owed or owes money at the end of the day",
-    "MONTH_NOT_SETTLED": "Settle the partners first: a partner is still owed or owes money at the end of the month"
+    "MONTH_NOT_SETTLED": "Settle the partners first: a partner is still owed or owes money at the end of the month",
+    "ORDER_NOT_FOUND": "Order not found",
+    "SALE_PAID_FROM_CREDIT": "This invoice was paid from the customer’s credit (linked to other invoices), so it can’t go back to preparing. Remove that payment first"
   },
   "app": {
     "name": "Perfume Inventory"
@@ -1171,5 +1192,47 @@
     "preparing": "Preparing the invoice...",
     "pickChat": "Click the chat you want to send to in WhatsApp.",
     "loginNote": "First time only: scan the QR code from WhatsApp on your phone (Linked devices) to open WhatsApp inside the app."
+  },
+  "orders": {
+    "tabSales": "Invoices",
+    "tabOrders": "Preparing",
+    "tabOrdersCount": "Preparing ({{count}})",
+    "note": "Orders not sold yet: they don’t deduct stock and aren’t counted in sales, profit or customer accounts, and their pieces show as \"reserved\" in products. When the order is delivered, press \"Sold\".",
+    "pendingToggle": "Preparing (not sold yet)",
+    "pendingHint": "The invoice is saved as an order: pieces are reserved, not deducted, and it isn’t counted in sales or the customer’s account until you press \"Sold\". The paid amount here is the deposit.",
+    "deposit": "Deposit",
+    "noDeposit": "No deposit",
+    "orderDate": "Order date",
+    "pieces": "Pieces",
+    "piecesSub": "{{pieces}} pcs ({{lines}} items)",
+    "status": "Status",
+    "preparing": "Preparing",
+    "confirm": "Sold",
+    "cancel": "Cancel",
+    "edit": "Edit order #{{id}}",
+    "empty": "No orders being prepared",
+    "created": "Order saved as preparing",
+    "confirmed": "Sale invoice #{{id}} created and pieces deducted",
+    "cancelled": "Order cancelled",
+    "cancelNote": "The order is deleted and its reserved pieces become available again.",
+    "cancelDepositWarning": "The customer paid a {{amount}} deposit: give it back.",
+    "confirmTitle": "Sold: order #{{id}}",
+    "confirmNote": "A regular sale invoice is created from this order on the sale date, and the pieces are deducted from stock now. The deposit counts as a payment.",
+    "saleDate": "Sale date",
+    "paidNow": "Paid now (besides the deposit)",
+    "paidAllRemaining": "All remaining ({{amount}})",
+    "noCustomerNote": "This order has no registered customer, so the invoice must be fully paid. If the customer still owes, edit the order and pick the customer first.",
+    "confirmAction": "Sold: create the invoice",
+    "toPending": "To preparing",
+    "toPendingHint": "Move the invoice back to preparing (not sold yet)",
+    "movedToPending": "The invoice is back to preparing (order #{{id}})",
+    "toPendingTitle": "Move invoice back to preparing",
+    "toPendingQuestion": "Are you sure you want to move this invoice back to preparing?",
+    "toPendingStock": "Its pieces go back to stock and stay reserved for the order.",
+    "toPendingAccounts": "The invoice leaves sales, profit and the customer’s account.",
+    "toPendingDeposit": "What the customer paid ({{amount}}) becomes the order’s deposit.",
+    "toPendingNoDeposit": "The customer hasn’t paid anything, so the order has no deposit.",
+    "toPendingNumber": "The order gets a new number, and a new invoice number when it’s sold again.",
+    "toPendingAction": "Yes, move it to preparing"
   }
 }
